@@ -1,0 +1,137 @@
+import { Menu } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Board } from "@/components/Board";
+import { FramesBar } from "@/components/FramesBar";
+import { DeletePlayDialog, PlayFormDialog, PlaysDialog } from "@/components/PlaysDialog";
+import { Toolbar } from "@/components/Toolbar";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { BoardProvider, useBoard } from "@/state/board-context";
+
+export default function App() {
+  return (
+    <BoardProvider>
+      <Shell />
+    </BoardProvider>
+  );
+}
+
+function Shell() {
+  const board = useBoard();
+  const mode = useLayoutMode();
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (target instanceof HTMLElement) {
+        const tag = target.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable) return;
+      }
+      const mod = event.metaKey || event.ctrlKey;
+      const key = event.key.toLowerCase();
+      if (mod && key === "z") {
+        event.preventDefault();
+        if (event.shiftKey) board.redo();
+        else board.undo();
+        return;
+      }
+      if (mod && key === "y") {
+        event.preventDefault();
+        board.redo();
+        return;
+      }
+      if (event.key === " ") {
+        event.preventDefault();
+        board.togglePlayback();
+        return;
+      }
+      if (event.key === "[") board.setFrame(board.state.doc.frameIndex - 1);
+      if (event.key === "]") board.setFrame(board.state.doc.frameIndex + 1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [board]);
+
+  if (!board.ready) {
+    return (
+      <div className="grid h-full place-items-center bg-ink">
+        <div className="text-center">
+          <p className="font-display text-5xl italic text-cream">Pizarra</p>
+          <p className="mt-2 text-sm text-muted">Preparando el campo…</p>
+        </div>
+      </div>
+    );
+  }
+
+  const meta = board.state.doc.meta;
+  const label = meta?.name ?? "Borrador";
+
+  return (
+    <div className="flex h-full w-full bg-ink text-cream">
+      <h1 className="sr-only">Pizarra táctica de baloncesto</h1>
+      {mode === "rail" && board.toolbarOpen && <Toolbar mode="rail" />}
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="relative min-h-0 flex-1">
+          <Board />
+          <button
+            type="button"
+            onClick={board.openSave}
+            className="absolute left-1/2 top-[max(0.55rem,env(safe-area-inset-top))] z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/10 bg-ink/75 px-3 py-1.5 text-sm shadow-lg backdrop-blur"
+          >
+            <span className="max-w-[42vw] truncate font-medium">{label}</span>
+            {meta && (
+              <span className="text-xs text-muted">{meta.category === "jugada" ? "Jugada" : "Ejercicio"}</span>
+            )}
+            {board.dirty && <span className="h-1.5 w-1.5 rounded-full bg-amber" aria-label="Cambios sin guardar" />}
+          </button>
+          <div className="pointer-events-none absolute inset-x-0 bottom-[max(0.55rem,env(safe-area-inset-bottom))] z-20 flex justify-center px-3">
+            <FramesBar />
+          </div>
+          {!board.toolbarOpen && (
+            <Button
+              variant="outline"
+              size="touch"
+              aria-label="Mostrar herramientas"
+              className={cn(
+                "absolute z-30 bg-panel shadow-xl",
+                mode === "rail"
+                  ? "left-3 top-[max(0.7rem,env(safe-area-inset-top))]"
+                  : "bottom-[max(0.7rem,env(safe-area-inset-bottom))] left-3",
+              )}
+              onClick={() => board.setToolbarOpen(true)}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          )}
+        </div>
+        {mode === "dock" && board.toolbarOpen && <Toolbar mode="dock" />}
+      </div>
+      <PlaysDialog />
+      <PlayFormDialog />
+      <DeletePlayDialog />
+      {board.toast && (
+        <div className="pointer-events-none fixed bottom-[max(5.5rem,env(safe-area-inset-bottom))] left-1/2 z-[60] -translate-x-1/2 rounded-full bg-cream px-4 py-2 text-sm font-medium text-ink shadow-lg">
+          {board.toast}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function useLayoutMode() {
+  const [mode, setMode] = useState<"rail" | "dock">("dock");
+  useEffect(() => {
+    const apply = () => {
+      const wide = window.innerWidth >= 900 && window.innerWidth > window.innerHeight;
+      setMode(wide ? "rail" : "dock");
+    };
+    apply();
+    window.addEventListener("resize", apply);
+    window.addEventListener("orientationchange", apply);
+    return () => {
+      window.removeEventListener("resize", apply);
+      window.removeEventListener("orientationchange", apply);
+    };
+  }, []);
+  return mode;
+}
