@@ -1,4 +1,20 @@
 {
+  "firestore": {
+    "database": "pizarra",
+    "location": "europe-southwest1",
+    "edition": "enterprise",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "auth": {
+    "providers": {
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "675whiteboard",
+        "supportEmail": "buba12@gmail.com"
+      }
+    }
+  },
   "hosting": {
     "public": "dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],

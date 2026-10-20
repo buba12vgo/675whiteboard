@@ -1,0 +1,128 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users/{uid}/plays
+    // Document ID: play id (UUID, 1–80 chars, [A-Za-z0-9-])
+    // Fields:
+    //   - id: string (required, immutable, must equal document id)
+    //   - name: string (required, 1–80)
+    //   - category: string (required, jugada | ejercicio)
+    //   - notes: string (required, 0–2000)
+    //   - view: string (required, full | half)
+    //   - frames: list (required, 1–40). Nested strokes and tokens are client-sanitized.
+    //   - createdAt: number epoch ms (required, immutable)
+    //   - updatedAt: number epoch ms (required, >= createdAt)
+    //
+    // Collection: users/{uid}/drafts
+    // Document ID: current
+    // Fields:
+    //   - view: string (required, full | half)
+    //   - frames: list (required, 1–40)
+    //   - frameIndex: number (required, within frames)
+    //   - meta: null or map { id, name, category, notes } (required key, value may be null)
+    //   - savedAt: number epoch ms (required)
+    //
+    // Ownership comes from the path uid, never from a field on the document.
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isEpochMillis(value) {
+      return value is number && value > 0 && value < 4102444800000;
+    }
+
+    function isShortId(value) {
+      return value is string && value.size() > 0 && value.size() <= 80 && value.matches('^[A-Za-z0-9-]+$');
+    }
+
+    function isCategory(value) {
+      return value == 'jugada' || value == 'ejercicio';
+    }
+
+    function isView(value) {
+      return value == 'full' || value == 'half';
+    }
+
+    function isBoundedList(value, minSize, maxSize) {
+      return value is list && value.size() >= minSize && value.size() <= maxSize;
+    }
+
+    function isValidMeta(meta) {
+      return meta == null || (
+        meta is map
+        && meta.keys().hasOnly(['id', 'name', 'category', 'notes'])
+        && isShortId(meta.id)
+        && meta.name is string
+        && meta.name.size() > 0
+        && meta.name.size() <= 80
+        && isCategory(meta.category)
+        && meta.notes is string
+        && meta.notes.size() <= 2000
+      );
+    }
+
+    function isValidPlay(playId) {
+      let data = request.resource.data;
+      return isShortId(playId)
+        && data.keys().hasOnly(['id', 'name', 'category', 'notes', 'view', 'frames', 'createdAt', 'updatedAt'])
+        && data.id == playId
+        && data.name is string
+        && data.name.size() > 0
+        && data.name.size() <= 80
+        && isCategory(data.category)
+        && data.notes is string
+        && data.notes.size() <= 2000
+        && isView(data.view)
+        && isBoundedList(data.frames, 1, 40)
+        && isEpochMillis(data.createdAt)
+        && isEpochMillis(data.updatedAt)
+        && data.updatedAt >= data.createdAt
+        && request.resource.size() < 900000;
+    }
+
+    function isValidPlayUpdate(playId) {
+      return isValidPlay(playId)
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    function isValidDraft() {
+      let data = request.resource.data;
+      return data.keys().hasOnly(['view', 'frames', 'frameIndex', 'meta', 'savedAt'])
+        && isView(data.view)
+        && isBoundedList(data.frames, 1, 40)
+        && data.frameIndex is number
+        && data.frameIndex >= 0
+        && data.frameIndex < data.frames.size()
+        && isValidMeta(data.meta)
+        && isEpochMillis(data.savedAt)
+        && request.resource.size() < 900000;
+    }
+
+    match /users/{userId}/plays/{playId} {
+      allow read, delete: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidPlay(playId);
+      allow update: if isOwner(userId) && isValidPlayUpdate(playId);
+    }
+
+    match /users/{userId}/drafts/{draftId} {
+      allow read, delete: if isOwner(userId) && draftId == 'current';
+      allow create: if isOwner(userId) && draftId == 'current' && isValidDraft();
+      allow update: if isOwner(userId) && draftId == 'current' && isValidDraft();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

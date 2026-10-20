@@ -1,16 +1,38 @@
 import { Menu } from "lucide-react";
 import { useEffect, useState } from "react";
+import { AuthScreen } from "@/components/AuthScreen";
 import { Board } from "@/components/Board";
 import { FramesBar } from "@/components/FramesBar";
 import { DeletePlayDialog, PlayFormDialog, PlaysDialog } from "@/components/PlaysDialog";
 import { Toolbar } from "@/components/Toolbar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { AuthProvider, useAuth } from "@/state/auth-context";
 import { BoardProvider, useBoard } from "@/state/board-context";
 
 export default function App() {
   return (
-    <BoardProvider>
+    <AuthProvider>
+      <Gate />
+    </AuthProvider>
+  );
+}
+
+function Gate() {
+  const auth = useAuth();
+  if (!auth.ready) {
+    return (
+      <div className="grid h-full place-items-center bg-ink">
+        <div className="text-center">
+          <p className="font-display text-5xl italic text-cream">Pizarra</p>
+          <p className="mt-2 text-sm text-muted">Comprobando la cuenta…</p>
+        </div>
+      </div>
+    );
+  }
+  if (!auth.user) return <AuthScreen />;
+  return (
+    <BoardProvider key={auth.user.uid} userId={auth.user.uid}>
       <Shell />
     </BoardProvider>
   );
@@ -18,6 +40,7 @@ export default function App() {
 
 function Shell() {
   const board = useBoard();
+  const auth = useAuth();
   const mode = useLayoutMode();
 
   useEffect(() => {
@@ -83,6 +106,14 @@ function Shell() {
               <span className="text-xs text-muted">{meta.category === "jugada" ? "Jugada" : "Ejercicio"}</span>
             )}
             {board.dirty && <span className="h-1.5 w-1.5 rounded-full bg-amber" aria-label="Cambios sin guardar" />}
+          </button>
+          <button
+            type="button"
+            onClick={() => void auth.signOutUser()}
+            title={auth.user?.email ?? "Salir"}
+            className="absolute right-[max(0.55rem,env(safe-area-inset-right))] top-[max(0.55rem,env(safe-area-inset-top))] z-20 max-w-[34vw] truncate rounded-full border border-white/10 bg-ink/75 px-3 py-1.5 text-sm text-muted shadow-lg backdrop-blur"
+          >
+            Salir
           </button>
           <div className="pointer-events-none absolute inset-x-0 bottom-[max(0.55rem,env(safe-area-inset-bottom))] z-20 flex justify-center px-3">
             <FramesBar />

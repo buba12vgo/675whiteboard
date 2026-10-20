@@ -11,7 +11,8 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { getPlay, listPlays, loadDraft, putPlay, removePlay, saveDraft } from "@/lib/db";
+import { cloudDeletePlay, cloudLoadDraft, cloudPutPlay, cloudSaveDraft, subscribePlays } from "@/lib/cloud";
+import { getPlay, listPlays, loadDraftRecord, putPlay, removePlay, saveDraft, syncPlays } from "@/lib/db";
 import { downloadJson, shareOrDownload } from "@/lib/image";
 import { pngFilename } from "@/lib/image";
 import { draftFromPlay, parsePlays, playFromDraft, serializePlays } from "@/lib/schema";
@@ -151,7 +152,9 @@ function createPlayStore(): PlayStore {
   };
 }
 
-export function BoardProvider({ children }: { children: ReactNode }) {
+const MAX_FRAMES = 40;
+
+export function BoardProvider({ userId, children }: { userId: string; children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, createState);
   const [settings] = useState(loadSettings);
   const [tool, setToolState] = useState<Tool>(settings.tool);
@@ -177,6 +180,14 @@ export function BoardProvider({ children }: { children: ReactNode }) {
   const rafRef = useRef(0);
   const toastTimer = useRef(0);
   const canPersist = useRef(true);
+  const cloudWarned = useRef(false);
+  const pendingCloud = useRef(new Set<string>());
+
+  const persistPlay = useCallback(async (play: Play) => {
+    pendingCloud.current.add(play.id);
+    await putPlay(play);
+    await cloudPutPlay(userId, play);
+  }, [userId]);
 
   const notify = useCallback((message: string) => {
     setToast(message);
@@ -204,7 +215,14 @@ export function BoardProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     (async () => {
       try {
-        const draft = await loadDraft();
+        const local = await loadDraftRecord();
+        let draft = local?.doc ?? null;
+        try {
+          const remote = await cloudLoadDraft(userId);
+          if (remote && remote.savedAt >= (local?.savedAt ?? 0)) draft = remote.doc;
+        } catch {
+          /* offline: the local draft is enough */
+        }
         if (cancelled) return;
         const doc = draft ?? createInitialDoc();
         dispatch({ type: "replace", doc });
@@ -230,18 +248,42 @@ export function BoardProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [notify, playStore]);
+  }, [notify, playStore, userId]);
+
+  useEffect(() => {
+    return subscribePlays(userId, (plays, removeMissing) => {
+      const incoming = new Set(plays.map((play) => play.id));
+      for (const id of pendingCloud.current) {
+        if (incoming.has(id)) pendingCloud.current.delete(id);
+      }
+      syncPlays(plays, removeMissing, pendingCloud.current)
+        .then(() => bumpPlays())
+        .catch(() => undefined);
+    });
+  }, [userId]);
 
   useEffect(() => {
     if (!ready || !canPersist.current) return;
-    const timer = window.setTimeout(() => {
+    const localTimer = window.setTimeout(() => {
       saveDraft(state.doc).catch(() => {
         canPersist.current = false;
         setPersistError(true);
       });
     }, 280);
-    return () => window.clearTimeout(timer);
-  }, [state.doc, ready]);
+    const cloudTimer = window.setTimeout(() => {
+      const savedAt = Date.now();
+      saveDraft(state.doc, savedAt).catch(() => undefined);
+      cloudSaveDraft(userId, state.doc, savedAt).catch(() => {
+        if (cloudWarned.current) return;
+        cloudWarned.current = true;
+        notify("El borrador no se pudo sincronizar. Se queda en este dispositivo.");
+      });
+    }, 1000);
+    return () => {
+      window.clearTimeout(localTimer);
+      window.clearTimeout(cloudTimer);
+    };
+  }, [notify, ready, state.doc, userId]);
 
   useEffect(() => {
     const next: Settings = { tool, color, lineStyle, cap, width, toolbarOpen };
@@ -314,7 +356,7 @@ export function BoardProvider({ children }: { children: ReactNode }) {
             notes: input.notes.slice(0, 2000),
             updatedAt: Date.now(),
           };
-          await putPlay(updated);
+          await persistPlay(updated);
           if (doc.meta?.id === renaming.id) {
             dispatch({
               type: "set-meta",
@@ -335,17 +377,17 @@ export function BoardProvider({ children }: { children: ReactNode }) {
         }
         const meta = { id, name, category: input.category, notes: input.notes.slice(0, 2000) };
         const play = playFromDraft(doc, meta, { createdAt });
-        await putPlay(play);
+        await persistPlay(play);
         dispatch({ type: "set-meta", meta });
         setSavedSig(docSignature({ ...doc, meta }));
         bumpPlays();
         setForm(null);
-        notify(asNew ? "Jugada guardada en este iPad." : "Jugada actualizada.");
+        notify(asNew ? "Jugada guardada." : "Jugada actualizada.");
       } catch {
-        notify("No se pudo guardar. Revisa el espacio del navegador.");
+        notify("No se pudo guardar. Revisa la conexión o el tamaño de la jugada.");
       }
     },
-    [form, notify],
+    [form, notify, persistPlay],
   );
 
   const duplicatePlay = useCallback(
@@ -364,21 +406,23 @@ export function BoardProvider({ children }: { children: ReactNode }) {
             tokens: frame.tokens.map((token) => ({ ...token })),
           })),
         };
-        await putPlay(copy);
+        await persistPlay(copy);
         bumpPlays();
         notify("Copia creada.");
       } catch {
         notify("No se pudo duplicar.");
       }
     },
-    [notify],
+    [notify, persistPlay],
   );
 
   const confirmDeletePlay = useCallback(async () => {
     const play = confirmDelete;
     if (!play) return;
     try {
+      pendingCloud.current.delete(play.id);
       await removePlay(play.id);
+      await cloudDeletePlay(userId, play.id);
       if (stateRef.current.doc.meta?.id === play.id) {
         dispatch({ type: "set-meta", meta: null });
         setSavedSig(docSignature({ ...stateRef.current.doc, meta: null }));
@@ -389,7 +433,7 @@ export function BoardProvider({ children }: { children: ReactNode }) {
     } catch {
       notify("No se pudo eliminar.");
     }
-  }, [confirmDelete, notify]);
+  }, [confirmDelete, notify, userId]);
 
   const openPlay = useCallback(
     (play: Play) => {
@@ -432,14 +476,14 @@ export function BoardProvider({ children }: { children: ReactNode }) {
         return;
       }
       try {
-        for (const play of plays) await putPlay(play);
+        for (const play of plays) await persistPlay(play);
         bumpPlays();
         notify(plays.length === 1 ? "1 jugada importada." : `${plays.length} jugadas importadas.`);
       } catch {
         notify("No se pudo importar.");
       }
     },
-    [notify],
+    [notify, persistPlay],
   );
 
   const exportPng = useCallback(async () => {
@@ -521,7 +565,13 @@ export function BoardProvider({ children }: { children: ReactNode }) {
       },
       resetTokens: () => edit({ type: "reset-tokens" }),
       setFrame,
-      addFrame: () => edit({ type: "add-frame" }),
+      addFrame: () => {
+        if (state.doc.frames.length >= MAX_FRAMES) {
+          notify("Una jugada puede tener hasta 40 pasos.");
+          return;
+        }
+        edit({ type: "add-frame" });
+      },
       deleteFrame: () => edit({ type: "delete-frame" }),
       togglePlayback,
       stopPlayback,
@@ -553,6 +603,7 @@ export function BoardProvider({ children }: { children: ReactNode }) {
       toast,
       savedSig,
       playStore,
+      notify,
       edit,
       setFrame,
       togglePlayback,
