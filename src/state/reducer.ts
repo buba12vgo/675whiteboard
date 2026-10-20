@@ -1,3 +1,4 @@
+import { tokensAfterMovements } from "@/lib/movement";
 import { draftFromPlay } from "@/lib/schema";
 import { defaultTokens } from "@/lib/tokens";
 import type { CourtView, Draft, Frame, Play, PlayMeta, Stroke, Token } from "@/lib/types";
@@ -211,7 +212,7 @@ export function reducer(state: State, action: Action): State {
       const next: Frame = {
         id: uid(),
         strokes: [],
-        tokens: frame.tokens.map((token) => ({ ...token })),
+        tokens: tokensAfterMovements(frame.tokens, frame.strokes),
       };
       const index = state.doc.frameIndex;
       const frames = [...state.doc.frames.slice(0, index + 1), next, ...state.doc.frames.slice(index + 1)];

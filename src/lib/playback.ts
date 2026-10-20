@@ -1,9 +1,11 @@
-import type { Token } from "@/lib/types";
+import { movementByToken, movementPath, pointAlong } from "@/lib/movement";
+import type { Stroke, Token } from "@/lib/types";
 
 export type DisplayToken = Token & { opacity: number };
 
-export function interpolateTokens(from: Token[], to: Token[], t: number): DisplayToken[] {
+export function interpolateTokens(from: Token[], to: Token[], t: number, strokes: Stroke[] = []): DisplayToken[] {
   const next = new Map(to.map((token) => [token.id, token]));
+  const moves = movementByToken(from, strokes);
   const seen = new Set<string>();
   const out: DisplayToken[] = [];
   for (const token of from) {
@@ -13,10 +15,12 @@ export function interpolateTokens(from: Token[], to: Token[], t: number): Displa
       out.push({ ...token, opacity: 1 - t });
       continue;
     }
+    const stroke = moves.get(token.id);
+    const along = stroke ? pointAlong(movementPath(token, target, stroke), t) : null;
     out.push({
       ...token,
-      x: token.x + (target.x - token.x) * t,
-      y: token.y + (target.y - token.y) * t,
+      x: along ? along.x : token.x + (target.x - token.x) * t,
+      y: along ? along.y : token.y + (target.y - token.y) * t,
       opacity: 1,
     });
   }

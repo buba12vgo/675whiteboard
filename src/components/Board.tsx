@@ -69,7 +69,7 @@ export function Board() {
   const nextFrame = state.doc.frames[(shownIndex + 1) % state.doc.frames.length];
   const displayTokens =
     play.playing && state.doc.frames.length > 1
-      ? interpolateTokens(frame.tokens, nextFrame.tokens, play.t)
+      ? interpolateTokens(frame.tokens, nextFrame.tokens, play.t, frame.strokes)
       : frame.tokens.map((token) => ({ ...token, opacity: 1 }));
 
   useEffect(() => {

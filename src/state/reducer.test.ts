@@ -27,6 +27,32 @@ describe("reducer", () => {
     expect(currentFrame(state).strokes).toHaveLength(1);
   });
 
+  it("adds a step and walks players to the end of movement arrows", () => {
+    let state = createState();
+    const mover = currentFrame(state).tokens.find((token) => token.id === "atk-1");
+    if (!mover) throw new Error("missing player");
+    state = reducer(state, {
+      type: "commit-stroke",
+      stroke: {
+        id: "cut",
+        points: [
+          { x: mover.x, y: mover.y, p: 0.5 },
+          { x: mover.x, y: mover.y + 3, p: 0.5 },
+          { x: mover.x + 4, y: mover.y + 3, p: 0.5 },
+        ],
+        color: "#111",
+        width: 0.1,
+        style: "solid",
+        cap: "arrow",
+      },
+    });
+    state = reducer(state, { type: "add-frame" });
+    const landed = currentFrame(state).tokens.find((token) => token.id === "atk-1");
+    expect(landed?.x).toBeCloseTo(mover.x + 4);
+    expect(landed?.y).toBeCloseTo(mover.y + 3);
+    expect(currentFrame(state).strokes).toHaveLength(0);
+  });
+
   it("adds a step with the same tokens and empty ink", () => {
     let state = createState();
     const before = currentFrame(state).tokens.map((token) => token.id);
