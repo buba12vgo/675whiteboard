@@ -11,7 +11,12 @@
       "emailPassword": true,
       "googleSignIn": {
         "oAuthBrandDisplayName": "675whiteboard",
-        "supportEmail": "buba12@gmail.com"
+        "supportEmail": "buba12@gmail.com",
+        "authorizedRedirectUris": [
+          "https://whiteboard675.firebaseapp.com/__/auth/handler",
+          "https://whiteboard675.web.app/__/auth/handler",
+          "https://675whiteboard.vercel.app/__/auth/handler"
+        ]
       }
     }
   },

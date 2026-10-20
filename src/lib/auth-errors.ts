@@ -13,7 +13,9 @@ const MESSAGES: Record<string, string> = {
   "auth/popup-closed-by-user": "Se cerró la ventana de Google antes de entrar.",
   "auth/cancelled-popup-request": "Se canceló el acceso con Google.",
   "auth/popup-blocked": "El navegador bloqueó la ventana de Google. Permite las ventanas emergentes.",
-  "auth/unauthorized-domain": "Este dominio no está autorizado para entrar con Google.",
+  "auth/unauthorized-domain": "Abre https://675whiteboard.vercel.app en Safari o Chrome para entrar.",
+  "auth/web-storage-unsupported": "Este navegador no deja guardar la sesión. Ábrelo en Safari o Chrome.",
+  "auth/operation-not-supported-in-this-environment": "Entra desde Safari o Chrome. Desde otra app el acceso con Google no funciona.",
   "auth/operation-not-allowed": "Ese método de acceso no está activado.",
 };
 

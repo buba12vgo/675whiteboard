@@ -50,6 +50,8 @@ npx -y firebase-tools@latest deploy --only auth,firestore --project whiteboard67
 
 Si publicas en un dominio nuevo, añádelo en Authentication → Settings → Authorized domains, sin `https://` ni puerto.
 
+En el móvil entra desde Safari o Chrome en [675whiteboard.vercel.app](https://675whiteboard.vercel.app). El acceso con Google no funciona si abres el enlace dentro de WhatsApp o Instagram.
+
 ## Publicar en Vercel
 
 `vercel.json` reescribe todas las rutas a `index.html` y evita cachear `sw.js`.

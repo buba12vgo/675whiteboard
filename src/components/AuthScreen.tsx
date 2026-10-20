@@ -1,10 +1,34 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/field";
 import { useAuth } from "@/state/auth-context";
 
+function inAppBrowser(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /Instagram|FBAN|FBAV|FB_IAB|WhatsApp|Line\/|Twitter|Snapchat/i.test(navigator.userAgent);
+}
+
+function useVisibleFrame(): { height: number; offset: number } | null {
+  const [frame, setFrame] = useState<{ height: number; offset: number } | null>(null);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const apply = () => setFrame({ height: viewport.height, offset: viewport.offsetTop });
+    apply();
+    viewport.addEventListener("resize", apply);
+    viewport.addEventListener("scroll", apply);
+    return () => {
+      viewport.removeEventListener("resize", apply);
+      viewport.removeEventListener("scroll", apply);
+    };
+  }, []);
+  return frame;
+}
+
 export function AuthScreen() {
   const auth = useAuth();
+  const frame = useVisibleFrame();
+  const embedded = inAppBrowser();
   const [mode, setMode] = useState<"entrar" | "crear">("entrar");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -16,8 +40,11 @@ export function AuthScreen() {
   };
 
   return (
-    <div className="plays-scroll grid h-full place-items-center overflow-y-auto bg-ink px-4 py-8">
-      <div className="w-full max-w-md rounded-3xl border border-line bg-panel p-6 shadow-2xl sm:p-8">
+    <div
+      className="plays-scroll flex h-full flex-col overflow-y-auto bg-ink px-4"
+      style={frame ? { height: frame.height, transform: `translateY(${frame.offset}px)` } : undefined}
+    >
+      <div className="my-auto w-full max-w-md self-center rounded-3xl border border-line bg-panel p-6 shadow-2xl sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber">675whiteboard</p>
         <h1 className="mt-2 font-display text-5xl italic text-cream">Pizarra</h1>
         <p className="mt-2 text-sm text-muted">Entra para guardar las jugadas en tu cuenta y abrirlas en el iPad o en el ordenador.</p>
@@ -25,6 +52,12 @@ export function AuthScreen() {
         {!auth.configured && (
           <p className="mt-6 rounded-xl bg-danger/15 px-3 py-2 text-sm text-cream">
             Falta la configuración de Firebase. Copia `.env.example` a `.env.local` y reinicia el servidor.
+          </p>
+        )}
+
+        {embedded && (
+          <p className="mt-6 rounded-xl bg-amber/15 px-3 py-2 text-sm text-cream">
+            Ábrelo en Safari o Chrome. Desde WhatsApp o Instagram el acceso con Google no funciona. Puedes entrar con correo.
           </p>
         )}
 
@@ -55,6 +88,7 @@ export function AuthScreen() {
               value={email}
               placeholder="tu@correo.com"
               onChange={(event) => setEmail(event.target.value)}
+              onFocus={(event) => event.currentTarget.scrollIntoView({ block: "center" })}
             />
           </div>
           <div className="grid gap-1.5">
@@ -68,6 +102,7 @@ export function AuthScreen() {
               value={password}
               placeholder="Mínimo 6 caracteres"
               onChange={(event) => setPassword(event.target.value)}
+              onFocus={(event) => event.currentTarget.scrollIntoView({ block: "center" })}
             />
           </div>
           {auth.error && <p className="rounded-xl bg-danger/15 px-3 py-2 text-sm text-cream">{auth.error}</p>}

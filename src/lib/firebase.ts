@@ -4,14 +4,22 @@ import { getFirestore, initializeFirestore, persistentLocalCache, type Firestore
 
 const databaseId = import.meta.env.VITE_FIREBASE_DATABASE_ID || "pizarra";
 
+/** Keep Google sign-in on the page's own domain. Mobile browsers block the firebaseapp.com helper. */
+export function authDomainForHost(host: string, configured: string): string {
+  if (host === "localhost" || host === "127.0.0.1") return configured;
+  return host;
+}
+
 function readConfig() {
   const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
-  const authDomain = import.meta.env.VITE_FIREBASE_AUTH_DOMAIN;
+  const configuredDomain = import.meta.env.VITE_FIREBASE_AUTH_DOMAIN;
   const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
   const storageBucket = import.meta.env.VITE_FIREBASE_STORAGE_BUCKET;
   const messagingSenderId = import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID;
   const appId = import.meta.env.VITE_FIREBASE_APP_ID;
-  if (!apiKey || !authDomain || !projectId || !appId) return null;
+  if (!apiKey || !configuredDomain || !projectId || !appId) return null;
+  const authDomain =
+    typeof window === "undefined" ? configuredDomain : authDomainForHost(window.location.hostname, configuredDomain);
   return { apiKey, authDomain, projectId, storageBucket, messagingSenderId, appId };
 }
 
