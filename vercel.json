@@ -1,4 +1,6 @@
 {
+  "installCommand": "npx -y npm@11 ci",
+  "framework": "vite",
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
   "headers": [
     {
