@@ -12,7 +12,7 @@ import {
   Undo2,
 } from "lucide-react";
 import type { ReactNode, Ref } from "react";
-import { IconArrow, IconDashed, IconDribble, IconFullCourt, IconHalfCourt, IconNone, IconSolid, IconTee } from "@/components/icons";
+import { IconArrow, IconDashed, IconDribble, IconFullCourt, IconHalfCourt, IconNone, IconShot, IconSolid, IconTee } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ROSTER } from "@/lib/tokens";
 import { PEN_COLORS, WIDTHS } from "@/lib/types";
@@ -26,7 +26,15 @@ export function Toolbar({ mode }: { mode: "rail" | "dock" }) {
   const side = horizontal ? "top" : "right";
   const frame = board.state.doc.frames[board.state.doc.frameIndex];
   const styleIcon =
-    board.lineStyle === "dashed" ? <IconDashed /> : board.lineStyle === "zigzag" ? <IconDribble /> : <IconSolid />;
+    board.lineStyle === "dashed" ? (
+      <IconDashed />
+    ) : board.lineStyle === "zigzag" ? (
+      <IconDribble />
+    ) : board.lineStyle === "shot" ? (
+      <IconShot />
+    ) : (
+      <IconSolid />
+    );
 
   return (
     <div
@@ -89,10 +97,10 @@ export function Toolbar({ mode }: { mode: "rail" | "dock" }) {
             <Popover.Content
               side={side}
               sideOffset={10}
-              className="z-50 w-64 rounded-2xl border border-line bg-panel p-3 shadow-2xl"
+              className="z-50 w-72 rounded-2xl border border-line bg-panel p-3 shadow-2xl"
             >
               <p className="px-1 pb-2 text-xs uppercase tracking-wide text-muted">Trazo</p>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <Choice pressed={board.lineStyle === "solid"} label="Movimiento" onClick={() => board.setLineStyle("solid")}>
                   <IconSolid />
                 </Choice>
@@ -101,6 +109,9 @@ export function Toolbar({ mode }: { mode: "rail" | "dock" }) {
                 </Choice>
                 <Choice pressed={board.lineStyle === "zigzag"} label="Bote" onClick={() => board.setLineStyle("zigzag")}>
                   <IconDribble />
+                </Choice>
+                <Choice pressed={board.lineStyle === "shot"} label="Tiro" onClick={() => board.setLineStyle("shot")}>
+                  <IconShot />
                 </Choice>
               </div>
               <p className="px-1 pb-2 pt-3 text-xs uppercase tracking-wide text-muted">Final</p>

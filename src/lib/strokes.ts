@@ -83,6 +83,26 @@ export function resample(points: XY[], step: number): XY[] {
   return out;
 }
 
+/** Shot: a smooth wave that starts and ends on the drawn line. */
+export function wavePoints(points: XY[], step: number, amplitude: number): XY[] {
+  const samples = resample(points, step);
+  if (samples.length < 3) return samples;
+  const last = samples.length - 1;
+  return samples.map((point, index) => {
+    if (index === 0 || index === last) return point;
+    const prev = samples[index - 1];
+    const next = samples[Math.min(last, index + 1)];
+    const dx = next.x - prev.x;
+    const dy = next.y - prev.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const side = Math.sin((index / last) * Math.PI * 3);
+    return {
+      x: point.x + (-dy / len) * amplitude * side,
+      y: point.y + (dx / len) * amplitude * side,
+    };
+  });
+}
+
 export function zigzagPoints(points: XY[], step: number, amplitude: number): XY[] {
   const samples = resample(points, step);
   if (samples.length < 3) return samples;
@@ -212,7 +232,9 @@ export function renderStroke(
     const path =
       stroke.style === "zigzag"
         ? zigzagPoints(pts, Math.max(10, 0.42 * scale), Math.max(5, 0.26 * scale))
-        : pts;
+        : stroke.style === "shot"
+          ? wavePoints(pts, Math.max(8, 0.28 * scale), Math.max(4, 0.18 * scale))
+          : pts;
     if (path.length === 1) {
       ctx.fillStyle = stroke.color;
       ctx.beginPath();

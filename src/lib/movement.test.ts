@@ -52,6 +52,71 @@ describe("movements", () => {
     expect(movementByToken([player], [pass, stray]).size).toBe(0);
   });
 
+  it("puts the ball on the tip of a pass that starts on it", () => {
+    const pass = stroke({
+      points: [
+        { x: 2.3, y: 2.5, p: 0.5 },
+        { x: 2.3, y: 8, p: 0.5 },
+        { x: 11, y: 8, p: 0.5 },
+      ],
+      style: "dashed",
+    });
+    const next = tokensAfterMovements([player, other, ball], [pass]);
+    expect(next.find((token) => token.id === "ball")).toMatchObject({ x: 11, y: 8 });
+    expect(next.find((token) => token.id === "atk-1")).toMatchObject({ x: 2, y: 2 });
+  });
+
+  it("moves the ball when the pass is drawn from the player holding it", () => {
+    const held: Token = { ...ball, x: 3.6, y: 2 };
+    const pass = stroke({
+      points: [
+        { x: 2.1, y: 2.1, p: 0.5 },
+        { x: 9, y: 4, p: 0.5 },
+      ],
+      style: "dashed",
+    });
+    const next = tokensAfterMovements([player, held], [pass]);
+    expect(next.find((token) => token.id === "ball")).toMatchObject({ x: 9, y: 4 });
+    expect(next.find((token) => token.id === "atk-1")).toMatchObject({ x: 2, y: 2 });
+  });
+
+  it("leaves the ball when the pass does not start on the ball or its holder", () => {
+    const pass = stroke({
+      points: [
+        { x: 10, y: 10, p: 0.5 },
+        { x: 14, y: 12, p: 0.5 },
+      ],
+      style: "dashed",
+    });
+    const next = tokensAfterMovements([player, other, ball], [pass]);
+    expect(next.find((token) => token.id === "ball")).toMatchObject({ x: 2.2, y: 2.4 });
+  });
+
+  it("follows the pass curve and ignores a shot", () => {
+    const pass = stroke({
+      points: [
+        { x: 2.2, y: 2.4, p: 0.5 },
+        { x: 2.2, y: 9, p: 0.5 },
+        { x: 8, y: 9, p: 0.5 },
+      ],
+      style: "dashed",
+    });
+    const shot = stroke({
+      id: "shot",
+      points: [
+        { x: 2.2, y: 2.4, p: 0.5 },
+        { x: 6, y: 1, p: 0.5 },
+      ],
+      style: "shot",
+    });
+    expect(movementByToken([player, ball], [shot]).size).toBe(0);
+    const from = ball;
+    const to = { ...ball, x: 8, y: 9 };
+    const mid = interpolateTokens([from], [to], 0.5, [pass]);
+    expect(mid[0].x).toBeCloseTo(2.2, 1);
+    expect(mid[0].y).toBeGreaterThan(8);
+  });
+
   it("follows the bend instead of the straight chord", () => {
     const line = stroke({
       points: [

@@ -16,7 +16,7 @@ import type {
 import { EXPORT_APP, EXPORT_VERSION } from "@/lib/types";
 import { uid } from "@/lib/utils";
 
-const STYLES = new Set<LineStyle>(["solid", "dashed", "zigzag"]);
+const STYLES = new Set<LineStyle>(["solid", "dashed", "zigzag", "shot"]);
 const CAPS = new Set<LineCap>(["none", "arrow", "tee"]);
 const KINDS = new Set<TokenKind>(["attack", "defense", "ball"]);
 

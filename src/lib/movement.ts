@@ -3,33 +3,71 @@ import type { Stroke, Token } from "@/lib/types";
 /** A movement line counts when it starts on the player, within about one token width. */
 export const MOVEMENT_SNAP = 1.25;
 
+/** A pass drawn on a player still moves the ball when that player is holding it. */
+export const PASS_HOLD = 1.8;
+
 type XY = { x: number; y: number };
 
 function isPlayer(token: Token): boolean {
   return token.kind !== "ball";
 }
 
-/** Solid movement strokes, each kept for the player whose mark is closest to its start. */
+function remember(
+  best: Map<string, { stroke: Stroke; dist: number; index: number }>,
+  id: string,
+  stroke: Stroke,
+  dist: number,
+  index: number,
+) {
+  const current = best.get(id);
+  const closer = !current || dist < current.dist - 1e-6;
+  const sameStartLater = current && Math.abs(dist - current.dist) <= 1e-6 && index > current.index;
+  if (closer || sameStartLater) best.set(id, { stroke, dist, index });
+}
+
+/**
+ * Solid strokes move the player they start on.
+ * Dashed passes move the ball when they start on it, or on the player holding it.
+ * The closest start wins; a later stroke breaks a tie. Shots and dribbles stay put.
+ */
 export function movementByToken(tokens: Token[], strokes: Stroke[]): Map<string, Stroke> {
   const players = tokens.filter(isPlayer);
+  const ball = tokens.find((token) => token.kind === "ball") ?? null;
   const best = new Map<string, { stroke: Stroke; dist: number; index: number }>();
   strokes.forEach((stroke, index) => {
-    if (stroke.style !== "solid" || stroke.points.length < 2) return;
+    if (stroke.points.length < 2) return;
     const start = stroke.points[0];
-    let chosen: Token | null = null;
-    let dist = MOVEMENT_SNAP;
+    if (stroke.style === "solid") {
+      let chosen: Token | null = null;
+      let dist = MOVEMENT_SNAP;
+      for (const token of players) {
+        const next = Math.hypot(token.x - start.x, token.y - start.y);
+        if (next <= dist) {
+          dist = next;
+          chosen = token;
+        }
+      }
+      if (chosen) remember(best, chosen.id, stroke, dist, index);
+      return;
+    }
+    if (stroke.style !== "dashed" || !ball) return;
+    const toBall = Math.hypot(ball.x - start.x, ball.y - start.y);
+    if (toBall <= MOVEMENT_SNAP) {
+      remember(best, ball.id, stroke, toBall, index);
+      return;
+    }
+    let holder: Token | null = null;
+    let holderDist = MOVEMENT_SNAP;
     for (const token of players) {
       const next = Math.hypot(token.x - start.x, token.y - start.y);
-      if (next <= dist) {
-        dist = next;
-        chosen = token;
+      if (next <= holderDist) {
+        holderDist = next;
+        holder = token;
       }
     }
-    if (!chosen) return;
-    const current = best.get(chosen.id);
-    const closer = !current || dist < current.dist - 1e-6;
-    const sameStartLater = current && Math.abs(dist - current.dist) <= 1e-6 && index > current.index;
-    if (closer || sameStartLater) best.set(chosen.id, { stroke, dist, index });
+    if (!holder) return;
+    const hands = Math.hypot(holder.x - ball.x, holder.y - ball.y);
+    if (hands <= PASS_HOLD) remember(best, ball.id, stroke, toBall, index);
   });
   return new Map([...best].map(([id, value]) => [id, value.stroke]));
 }

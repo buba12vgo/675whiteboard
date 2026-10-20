@@ -1,6 +1,6 @@
 export type CourtView = "full" | "half";
 
-export type LineStyle = "solid" | "dashed" | "zigzag";
+export type LineStyle = "solid" | "dashed" | "zigzag" | "shot";
 
 export type LineCap = "none" | "arrow" | "tee";
 

@@ -39,6 +39,19 @@ export function IconDribble(props: IconProps) {
   );
 }
 
+export function IconShot(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path
+        d="M3 14.5c1.4-2.6 2.4-2.6 3.6 0s2.2 2.6 3.6 0 2.2-2.6 3.6 0 2.2 2.6 3.6 0 2-2.4 3.6-1.2"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
 export function IconArrow(props: IconProps) {
   return (
     <Svg {...props}>

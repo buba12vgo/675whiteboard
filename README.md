@@ -68,7 +68,7 @@ La URL HTTPS de Vercel es la que se abre en Safari del iPad para instalarla.
 ## Cómo se usa
 
 - **Lápiz**, **goma** y **mover**. El lápiz usa eventos de puntero: con el Apple Pencil respeta la presión; con el dedo el trazo se suaviza.
-- **Trazo**: continuo para un desplazamiento, discontinuo para un pase, zigzag para un bote. El final puede ser libre, flecha o una T de bloqueo.
+- **Trazo**: continuo para un desplazamiento, discontinuo para un pase, zigzag para un bote y ondulado para un tiro. El final puede ser libre, flecha o una T de bloqueo. Al pasar de paso, la jugadora sigue su flecha de movimiento y el balón aparece en la punta del pase.
 - **Campo entero** y **medio campo**. El campo se vuelve a dibujar al girar el iPad.
 - Fichas **1–5**, **X1–X5** y el **balón**. Se arrastran con la herramienta Mover. Se pueden quitar y volver a poner.
 - **Pasos**: cada paso guarda las flechas y la posición de las fichas. Reproducir anima el movimiento hasta el paso siguiente.
