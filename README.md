@@ -69,7 +69,7 @@ La URL HTTPS de Vercel es la que se abre en Safari del iPad para instalarla.
 
 - **Lápiz**, **goma** y **mover**. El lápiz usa eventos de puntero: con el Apple Pencil respeta la presión; con el dedo el trazo se suaviza.
 - **Trazo**, con la simbología del curso de entrenador: continuo para un desplazamiento sin balón, discontinuo para un pase, discontinuo con un bucle para una asistencia, zigzag para un desplazamiento con balón y ondulado para un tiro. El final puede ser libre, flecha rellena o una T de bloqueo. Al pasar de paso, la jugadora sigue su flecha y el balón aparece en la punta del pase o de la asistencia.
-- **Campo** de diagrama: rectángulo cerrado, zona rectangular, línea de fondo arriba en medio campo. No lleva canasta, círculo de tiros libres, círculo central ni marcas. La línea de 6,25 se enciende con el botón **6,25** solo cuando el diagrama la necesita.
+- **Campo** de diagrama: rectángulo cerrado, zona rectangular, línea de fondo arriba en medio campo. No lleva canasta, círculo de tiros libres, círculo central ni marcas. Arranca en **parquet claro** con la línea de 3 pintada. En **Fondo** se puede pasar a parquet oscuro, claro, oscuro o un color plano. El botón **6,25** muestra u oculta esa línea.
 - El atacante que tiene el balón lleva un punto naranja. La defensa es una X. El obstáculo es un cuadrado, en Fichas.
 - **Campo entero** y **medio campo**. El medio campo pone la línea de fondo arriba. El campo se vuelve a dibujar al girar el iPad.
 - Fichas **1–5**, **X1–X5**, el **balón** y un **obstáculo**. Se arrastran con la herramienta Mover. Se pueden quitar y volver a poner.

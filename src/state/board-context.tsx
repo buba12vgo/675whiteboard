@@ -13,6 +13,7 @@ import {
 } from "react";
 import { cloudDeletePlay, cloudLoadDraft, cloudPutPlay, cloudSaveDraft, subscribePlays } from "@/lib/cloud";
 import { getPlay, listPlays, loadDraftRecord, putPlay, removePlay, saveDraft, syncPlays } from "@/lib/db";
+import { FLAT_COLORS, isCourtFloor, type CourtFloor } from "@/lib/court";
 import { downloadJson, shareOrDownload } from "@/lib/image";
 import { pngFilename } from "@/lib/image";
 import { draftFromPlay, parsePlays, playFromDraft, serializePlays } from "@/lib/schema";
@@ -40,6 +41,8 @@ type Settings = {
   width: number;
   toolbarOpen: boolean;
   showThree: boolean;
+  floor: CourtFloor;
+  flatColor: string;
 };
 
 type FormState = { mode: "save" } | { mode: "rename"; play: Play };
@@ -69,6 +72,8 @@ type BoardApi = {
   width: number;
   toolbarOpen: boolean;
   showThree: boolean;
+  floor: CourtFloor;
+  flatColor: string;
   playsOpen: boolean;
   playsVersion: number;
   form: FormState | null;
@@ -85,6 +90,8 @@ type BoardApi = {
   setWidth: (width: number) => void;
   setToolbarOpen: (open: boolean) => void;
   setShowThree: (show: boolean) => void;
+  setFloor: (floor: CourtFloor) => void;
+  setFlatColor: (color: string) => void;
   setPlaysOpen: (open: boolean) => void;
   openSave: () => void;
   openRename: (play: Play) => void;
@@ -127,13 +134,23 @@ function loadSettings(): Settings {
     cap: "arrow",
     width: 0.1,
     toolbarOpen: true,
-    showThree: false,
+    showThree: true,
+    floor: "parquet-light",
+    flatColor: FLAT_COLORS[0].value,
   };
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw) as Partial<Settings>;
-    return { ...fallback, ...parsed };
+    const floor = isCourtFloor(parsed.floor) ? parsed.floor : null;
+    if (!floor) return { ...fallback, ...parsed, floor: fallback.floor, showThree: true, flatColor: fallback.flatColor };
+    return {
+      ...fallback,
+      ...parsed,
+      floor,
+      flatColor: typeof parsed.flatColor === "string" ? parsed.flatColor : fallback.flatColor,
+      showThree: typeof parsed.showThree === "boolean" ? parsed.showThree : true,
+    };
   } catch {
     return fallback;
   }
@@ -168,6 +185,8 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
   const [width, setWidthState] = useState(settings.width);
   const [toolbarOpen, setToolbarOpenState] = useState(settings.toolbarOpen);
   const [showThree, setShowThreeState] = useState(settings.showThree);
+  const [floor, setFloorState] = useState<CourtFloor>(settings.floor);
+  const [flatColor, setFlatColorState] = useState(settings.flatColor);
   const [ready, setReady] = useReducer((_: boolean, next: boolean) => next, false);
   const [persistError, setPersistError] = useReducer((_: boolean, next: boolean) => next, false);
   const [playsOpen, setPlaysOpen] = useReducer((_: boolean, next: boolean) => next, false);
@@ -291,13 +310,13 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
   }, [notify, ready, state.doc, userId]);
 
   useEffect(() => {
-    const next: Settings = { tool, color, lineStyle, cap, width, toolbarOpen, showThree };
+    const next: Settings = { tool, color, lineStyle, cap, width, toolbarOpen, showThree, floor, flatColor };
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
     } catch {
       /* ignore quota */
     }
-  }, [tool, color, lineStyle, cap, width, toolbarOpen, showThree]);
+  }, [tool, color, lineStyle, cap, width, toolbarOpen, showThree, floor, flatColor]);
 
   useEffect(() => () => window.cancelAnimationFrame(rafRef.current), []);
 
@@ -532,6 +551,8 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
       width,
       toolbarOpen,
       showThree,
+      floor,
+      flatColor,
       playsOpen,
       playsVersion,
       form,
@@ -548,6 +569,8 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
       setWidth: setWidthState,
       setToolbarOpen: setToolbarOpenState,
       setShowThree: setShowThreeState,
+      setFloor: setFloorState,
+      setFlatColor: setFlatColorState,
       setPlaysOpen,
       openSave: () => setForm({ mode: "save" }),
       openRename: (play) => setForm({ mode: "rename", play }),
@@ -604,6 +627,8 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
       width,
       toolbarOpen,
       showThree,
+      floor,
+      flatColor,
       playsOpen,
       playsVersion,
       form,

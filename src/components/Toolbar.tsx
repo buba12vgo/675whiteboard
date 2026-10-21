@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type { ReactNode, Ref } from "react";
 import { IconArrow, IconAssist, IconDashed, IconDribble, IconFullCourt, IconHalfCourt, IconNone, IconShot, IconSolid, IconTee } from "@/components/icons";
+import { COURT_FLOORS, FLAT_COLORS, type CourtFloor } from "@/lib/court";
 import { Button } from "@/components/ui/button";
 import { ROSTER } from "@/lib/tokens";
 import { PEN_COLORS, WIDTHS } from "@/lib/types";
@@ -169,6 +170,54 @@ export function Toolbar({ mode }: { mode: "rail" | "dock" }) {
         </ToolButton>
         <Popover.Root>
           <Popover.Trigger asChild>
+            <ToolButton label="Fondo">
+              <FloorSwatch floor={board.floor} flatColor={board.flatColor} />
+            </ToolButton>
+          </Popover.Trigger>
+          <Popover.Portal>
+            <Popover.Content
+              side={side}
+              sideOffset={10}
+              className="z-50 w-72 rounded-2xl border border-line bg-panel p-3 shadow-2xl"
+            >
+              <p className="px-1 pb-2 text-xs uppercase tracking-wide text-muted">Fondo</p>
+              <div className="grid grid-cols-2 gap-2">
+                {COURT_FLOORS.map((item) => (
+                  <Choice
+                    key={item.id}
+                    pressed={board.floor === item.id}
+                    label={item.label}
+                    onClick={() => board.setFloor(item.id)}
+                  >
+                    <FloorSwatch floor={item.id} flatColor={board.flatColor} />
+                  </Choice>
+                ))}
+              </div>
+              {board.floor === "flat" && (
+                <>
+                  <p className="px-1 pb-2 pt-3 text-xs uppercase tracking-wide text-muted">Color</p>
+                  <div className="grid grid-cols-6 gap-2">
+                    {FLAT_COLORS.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        aria-label={item.label}
+                        onClick={() => board.setFlatColor(item.value)}
+                        className={cn(
+                          "h-9 w-9 rounded-full border-2",
+                          board.flatColor === item.value ? "border-amber" : "border-white/25",
+                        )}
+                        style={{ background: item.value }}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </Popover.Content>
+          </Popover.Portal>
+        </Popover.Root>
+        <Popover.Root>
+          <Popover.Trigger asChild>
             <ToolButton label="Fichas">
               <span className="text-sm font-bold">5</span>
             </ToolButton>
@@ -241,6 +290,20 @@ function RosterGroup({ title, ids }: { title: string; ids: string[] }) {
       })}
     </div>
   );
+}
+
+function FloorSwatch({ floor, flatColor }: { floor: CourtFloor; flatColor: string }) {
+  const style =
+    floor === "parquet-light"
+      ? { background: "repeating-linear-gradient(90deg, #f3ddb4 0 3px, #e8c48c 3px 6px, #deb67a 6px 9px)" }
+      : floor === "parquet-dark"
+        ? { background: "repeating-linear-gradient(90deg, #7c5230 0 3px, #4c3016 3px 6px, #6e4524 6px 9px)" }
+        : floor === "dark"
+          ? { background: "#1a2330" }
+          : floor === "flat"
+            ? { background: flatColor }
+            : { background: "#f4efe4" };
+  return <span className="h-6 w-6 rounded-md border border-white/40" style={style} />;
 }
 
 function Sep({ horizontal }: { horizontal: boolean }) {
