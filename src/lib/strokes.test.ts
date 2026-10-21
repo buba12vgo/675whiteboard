@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hitTestStroke, resample, simplifyPoints, wavePoints, zigzagPoints } from "./strokes.ts";
+import { assistPoints, hitTestStroke, resample, simplifyPoints, wavePoints, zigzagPoints } from "./strokes.ts";
 import type { Stroke } from "./types.ts";
 
 const stroke: Stroke = {
@@ -45,6 +45,20 @@ describe("strokes", () => {
     expect(points.length).toBeGreaterThan(2);
     const offset = points.slice(1, -1).some((point) => Math.abs(point.y) > 0.4);
     expect(offset).toBe(true);
+  });
+
+  it("curls an assist and keeps the arrow tip", () => {
+    const points = assistPoints(
+      [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+      ],
+      1.2,
+    );
+    expect(points[0]).toEqual({ x: 0, y: 0 });
+    expect(points.at(-1)).toEqual({ x: 10, y: 0 });
+    expect(points.length).toBeGreaterThan(4);
+    expect(points.some((point) => Math.abs(point.y) > 0.4)).toBe(true);
   });
 
   it("waves a shot off the line and keeps both ends", () => {

@@ -22,10 +22,11 @@ export const ROSTER: RosterEntry[] = [
   { id: "def-4", kind: "defense", label: "X4", color: "#3f6212", x: 4.35, y: 5.55 },
   { id: "def-5", kind: "defense", label: "X5", color: "#86198f", x: 4.35, y: 9.45 },
   { id: "ball", kind: "ball", label: "", color: "#e86b1f", x: 10.35, y: 6.85 },
+  { id: "obstacle", kind: "obstacle", label: "", color: "#1a2332", x: 7, y: 7.5 },
 ];
 
 export function defaultTokens(): Token[] {
-  return ROSTER.map((entry) => ({
+  return ROSTER.filter((entry) => entry.kind !== "obstacle").map((entry) => ({
     id: entry.id,
     kind: entry.kind,
     label: entry.label,

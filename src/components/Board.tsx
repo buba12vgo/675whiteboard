@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { drawCourt } from "@/lib/court";
 import { fitCourt, type CourtTransform } from "@/lib/geometry";
 import { canvasToPng, renderBoardCanvas } from "@/lib/image";
+import { ballHolderId } from "@/lib/movement";
 import { hitTestStroke, renderStrokes, simplifyPoints } from "@/lib/strokes";
 import { interpolateTokens } from "@/lib/playback";
 import type { Point, Stroke } from "@/lib/types";
@@ -32,6 +33,7 @@ export function Board() {
     registerExporter,
     playStore,
     stopPlayback,
+    showThree,
   } = useBoard();
   const play = usePlayback();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -71,6 +73,7 @@ export function Board() {
     play.playing && state.doc.frames.length > 1
       ? interpolateTokens(frame.tokens, nextFrame.tokens, play.t, frame.strokes)
       : frame.tokens.map((token) => ({ ...token, opacity: 1 }));
+  const holderId = ballHolderId(displayTokens);
 
   useEffect(() => {
     const el = rootRef.current;
@@ -111,9 +114,9 @@ export function Board() {
     const court = courtRef.current;
     if (!court) return;
     const ctx = prepareCanvas(court, size.w, size.h);
-    drawCourt(ctx, transform);
+    drawCourt(ctx, transform, { three: showThree });
     drawInkRef.current();
-  }, [transform, size.w, size.h]);
+  }, [transform, size.w, size.h, showThree]);
 
   useEffect(() => {
     drawInkRef.current();
@@ -124,11 +127,11 @@ export function Board() {
       const doc = stateRef.current.doc;
       const current = doc.frames[doc.frameIndex];
       const hint = transformRef.current?.orientation ?? (doc.view === "half" ? "half" : "length-x");
-      const canvas = renderBoardCanvas(doc.view, hint, current.strokes, current.tokens);
+      const canvas = renderBoardCanvas(doc.view, hint, current.strokes, current.tokens, { three: showThree });
       return canvasToPng(canvas);
     });
     return () => registerExporter(null);
-  }, [registerExporter]);
+  }, [registerExporter, showThree]);
 
   function eventPoint(event: PointerEvent): Point | null {
     const canvas = inkRef.current;
@@ -275,7 +278,7 @@ export function Board() {
         >
           {displayTokens.map((token) => {
             const screen = transform.toScreen(token.x, token.y);
-            const size = token.kind === "ball" ? tokenSize * 0.72 : tokenSize;
+            const size = token.kind === "ball" ? tokenSize * 0.72 : token.kind === "obstacle" ? tokenSize * 0.86 : tokenSize;
             const active = selected === token.id && tool === "move";
             return (
               <div
@@ -292,7 +295,7 @@ export function Board() {
               >
                 <button
                   type="button"
-                  aria-label={token.kind === "ball" ? "Balón" : token.label}
+                  aria-label={token.kind === "ball" ? "Balón" : token.kind === "obstacle" ? "Obstáculo" : token.label}
                   className="relative grid place-items-center rounded-full"
                   style={{ width: size, height: size, touchAction: "none" }}
                   onPointerDown={(event) => {
@@ -336,7 +339,7 @@ export function Board() {
                   {active && (
                     <span className="absolute -inset-1 rounded-[32%] border-2 border-amber" />
                   )}
-                  <TokenMark token={token} size={size} />
+                  <TokenMark token={token} size={size} holding={token.id === holderId} />
                 </button>
                 {active && (
                   <button

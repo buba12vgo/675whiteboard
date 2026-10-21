@@ -12,7 +12,7 @@ import {
   Undo2,
 } from "lucide-react";
 import type { ReactNode, Ref } from "react";
-import { IconArrow, IconDashed, IconDribble, IconFullCourt, IconHalfCourt, IconNone, IconShot, IconSolid, IconTee } from "@/components/icons";
+import { IconArrow, IconAssist, IconDashed, IconDribble, IconFullCourt, IconHalfCourt, IconNone, IconShot, IconSolid, IconTee } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ROSTER } from "@/lib/tokens";
 import { PEN_COLORS, WIDTHS } from "@/lib/types";
@@ -28,6 +28,8 @@ export function Toolbar({ mode }: { mode: "rail" | "dock" }) {
   const styleIcon =
     board.lineStyle === "dashed" ? (
       <IconDashed />
+    ) : board.lineStyle === "assist" ? (
+      <IconAssist />
     ) : board.lineStyle === "zigzag" ? (
       <IconDribble />
     ) : board.lineStyle === "shot" ? (
@@ -101,17 +103,20 @@ export function Toolbar({ mode }: { mode: "rail" | "dock" }) {
             >
               <p className="px-1 pb-2 text-xs uppercase tracking-wide text-muted">Trazo</p>
               <div className="grid grid-cols-2 gap-2">
-                <Choice pressed={board.lineStyle === "solid"} label="Movimiento" onClick={() => board.setLineStyle("solid")}>
+                <Choice pressed={board.lineStyle === "solid"} label="Sin balón" onClick={() => board.setLineStyle("solid")}>
                   <IconSolid />
                 </Choice>
                 <Choice pressed={board.lineStyle === "dashed"} label="Pase" onClick={() => board.setLineStyle("dashed")}>
                   <IconDashed />
                 </Choice>
-                <Choice pressed={board.lineStyle === "zigzag"} label="Bote" onClick={() => board.setLineStyle("zigzag")}>
-                  <IconDribble />
+                <Choice pressed={board.lineStyle === "assist"} label="Asistencia" onClick={() => board.setLineStyle("assist")}>
+                  <IconAssist />
                 </Choice>
                 <Choice pressed={board.lineStyle === "shot"} label="Tiro" onClick={() => board.setLineStyle("shot")}>
                   <IconShot />
+                </Choice>
+                <Choice pressed={board.lineStyle === "zigzag"} label="Con balón" onClick={() => board.setLineStyle("zigzag")}>
+                  <IconDribble />
                 </Choice>
               </div>
               <p className="px-1 pb-2 pt-3 text-xs uppercase tracking-wide text-muted">Final</p>
@@ -159,6 +164,9 @@ export function Toolbar({ mode }: { mode: "rail" | "dock" }) {
         >
           {board.state.doc.view === "half" ? <IconHalfCourt /> : <IconFullCourt />}
         </ToolButton>
+        <ToolButton label="Línea de 6,25" pressed={board.showThree} onClick={() => board.setShowThree(!board.showThree)}>
+          <span className="text-[11px] font-bold leading-none">6,25</span>
+        </ToolButton>
         <Popover.Root>
           <Popover.Trigger asChild>
             <ToolButton label="Fichas">
@@ -175,6 +183,7 @@ export function Toolbar({ mode }: { mode: "rail" | "dock" }) {
                 <RosterGroup title="Ataque" ids={ROSTER.filter((item) => item.kind === "attack").map((item) => item.id)} />
                 <RosterGroup title="Defensa" ids={ROSTER.filter((item) => item.kind === "defense").map((item) => item.id)} />
                 <RosterGroup title="Balón" ids={["ball"]} />
+                <RosterGroup title="Material" ids={["obstacle"]} />
               </div>
               <Button variant="outline" className="mt-3 w-full" onClick={board.resetTokens}>
                 Recolocar 5c5
@@ -216,7 +225,9 @@ function RosterGroup({ title, ids }: { title: string; ids: string[] }) {
               token={{ id: entry.id, kind: entry.kind, label: entry.label, color: entry.color, x: 0, y: 0 }}
               size={32}
             />
-            <span className="flex-1 text-sm">{entry.kind === "ball" ? "Balón" : entry.label}</span>
+            <span className="flex-1 text-sm">
+              {entry.kind === "ball" ? "Balón" : entry.kind === "obstacle" ? "Obstáculo" : entry.label}
+            </span>
             <span
               className={cn(
                 "grid h-6 w-6 place-items-center rounded-md border text-xs",

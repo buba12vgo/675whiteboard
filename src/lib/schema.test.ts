@@ -19,7 +19,7 @@ const play: Play = {
           points: [{ x: 1, y: 2, p: 0.4 }],
           color: "#111",
           width: 0.1,
-          style: "shot",
+          style: "assist",
           cap: "arrow",
         },
       ],
@@ -36,7 +36,7 @@ describe("schema", () => {
     expect(parsed?.[0].name).toBe("Horn");
     expect(parsed?.[0].category).toBe("jugada");
     expect(parsed?.[0].id).not.toBe("p1");
-    expect(parsed?.[0].frames[0].strokes[0].style).toBe("shot");
+    expect(parsed?.[0].frames[0].strokes[0].style).toBe("assist");
   });
 
   it("rejects files without plays", () => {

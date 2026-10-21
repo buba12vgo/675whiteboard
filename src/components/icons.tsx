@@ -39,6 +39,21 @@ export function IconDribble(props: IconProps) {
   );
 }
 
+export function IconAssist(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path
+        d="M3 16.5c1.2-.6 1.8-1.4 2.4-2M8.2 12.2c.7-.5 1.4-.4 1.8.2.5.8-.2 1.6-1.1 1.7-.8.1-1.5-.6-1.4-1.3"
+        stroke="currentColor"
+        strokeWidth="2.1"
+        strokeLinecap="round"
+      />
+      <path d="M10 12.4 17.5 7.2" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeDasharray="1.2 2.6" />
+      <path d="M13.2 6.4 17.8 6.8 16.6 11.2" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
 export function IconShot(props: IconProps) {
   return (
     <Svg {...props}>
@@ -93,9 +108,7 @@ export function IconHalfCourt(props: IconProps) {
   return (
     <Svg {...props}>
       <rect x="6" y="3" width="12" height="18" rx="1" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M9 3.8h6v4.2H9z" stroke="currentColor" strokeWidth="1.4" />
-      <path d="M9 8.2a3 3 0 0 0 6 0" stroke="currentColor" strokeWidth="1.4" />
-      <path d="M7 16.5a5 5 0 0 0 10 0" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M9 3.8h6v5.2H9z" stroke="currentColor" strokeWidth="1.4" />
     </Svg>
   );
 }

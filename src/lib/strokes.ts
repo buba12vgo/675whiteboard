@@ -83,6 +83,34 @@ export function resample(points: XY[], step: number): XY[] {
   return out;
 }
 
+/** Assist: a pass that curls once before the arrow. */
+export function assistPoints(points: XY[], radius: number): XY[] {
+  if (points.length < 2 || radius <= 0) return points;
+  const end = points[points.length - 1];
+  let from = points[0];
+  for (let i = points.length - 2; i >= 0; i -= 1) {
+    if (Math.hypot(end.x - points[i].x, end.y - points[i].y) >= radius * 2.2) {
+      from = points[i];
+      break;
+    }
+  }
+  const angle = Math.atan2(end.y - from.y, end.x - from.x);
+  const center = {
+    x: end.x - Math.cos(angle) * radius * 2.3,
+    y: end.y - Math.sin(angle) * radius * 2.3,
+  };
+  const loop: XY[] = [];
+  const start = angle + Math.PI;
+  for (let i = 0; i <= 12; i += 1) {
+    const turn = start + (i / 12) * Math.PI * 1.7;
+    loop.push({
+      x: center.x + Math.cos(turn) * radius,
+      y: center.y + Math.sin(turn) * radius,
+    });
+  }
+  return [...points.slice(0, -1), ...loop, end];
+}
+
 /** Shot: a smooth wave that starts and ends on the drawn line. */
 export function wavePoints(points: XY[], step: number, amplitude: number): XY[] {
   const samples = resample(points, step);
@@ -234,7 +262,9 @@ export function renderStroke(
         ? zigzagPoints(pts, Math.max(10, 0.42 * scale), Math.max(5, 0.26 * scale))
         : stroke.style === "shot"
           ? wavePoints(pts, Math.max(8, 0.28 * scale), Math.max(4, 0.18 * scale))
-          : pts;
+          : stroke.style === "assist"
+            ? assistPoints(pts, Math.max(7, 0.22 * scale))
+            : pts;
     if (path.length === 1) {
       ctx.fillStyle = stroke.color;
       ctx.beginPath();
@@ -245,8 +275,9 @@ export function renderStroke(
       ctx.strokeStyle = stroke.color;
       ctx.lineWidth = widthPx;
       ctx.lineJoin = "round";
-      ctx.lineCap = stroke.style === "dashed" ? "butt" : "round";
-      if (stroke.style === "dashed") {
+      const dashed = stroke.style === "dashed" || stroke.style === "assist";
+      ctx.lineCap = dashed ? "butt" : "round";
+      if (dashed) {
         ctx.setLineDash([widthPx * 1.7, widthPx * 1.45]);
       }
       ctx.stroke();

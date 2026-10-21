@@ -1,6 +1,6 @@
 export type CourtView = "full" | "half";
 
-export type LineStyle = "solid" | "dashed" | "zigzag" | "shot";
+export type LineStyle = "solid" | "dashed" | "assist" | "zigzag" | "shot";
 
 export type LineCap = "none" | "arrow" | "tee";
 
@@ -8,7 +8,7 @@ export type Tool = "draw" | "erase" | "move";
 
 export type Category = "jugada" | "ejercicio";
 
-export type TokenKind = "attack" | "defense" | "ball";
+export type TokenKind = "attack" | "defense" | "ball" | "obstacle";
 
 export type Point = {
   x: number;

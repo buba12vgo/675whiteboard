@@ -39,6 +39,7 @@ type Settings = {
   cap: LineCap;
   width: number;
   toolbarOpen: boolean;
+  showThree: boolean;
 };
 
 type FormState = { mode: "save" } | { mode: "rename"; play: Play };
@@ -67,6 +68,7 @@ type BoardApi = {
   cap: LineCap;
   width: number;
   toolbarOpen: boolean;
+  showThree: boolean;
   playsOpen: boolean;
   playsVersion: number;
   form: FormState | null;
@@ -82,6 +84,7 @@ type BoardApi = {
   setCap: (cap: LineCap) => void;
   setWidth: (width: number) => void;
   setToolbarOpen: (open: boolean) => void;
+  setShowThree: (show: boolean) => void;
   setPlaysOpen: (open: boolean) => void;
   openSave: () => void;
   openRename: (play: Play) => void;
@@ -124,6 +127,7 @@ function loadSettings(): Settings {
     cap: "arrow",
     width: 0.1,
     toolbarOpen: true,
+    showThree: false,
   };
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
@@ -163,6 +167,7 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
   const [cap, setCapState] = useState<LineCap>(settings.cap);
   const [width, setWidthState] = useState(settings.width);
   const [toolbarOpen, setToolbarOpenState] = useState(settings.toolbarOpen);
+  const [showThree, setShowThreeState] = useState(settings.showThree);
   const [ready, setReady] = useReducer((_: boolean, next: boolean) => next, false);
   const [persistError, setPersistError] = useReducer((_: boolean, next: boolean) => next, false);
   const [playsOpen, setPlaysOpen] = useReducer((_: boolean, next: boolean) => next, false);
@@ -286,13 +291,13 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
   }, [notify, ready, state.doc, userId]);
 
   useEffect(() => {
-    const next: Settings = { tool, color, lineStyle, cap, width, toolbarOpen };
+    const next: Settings = { tool, color, lineStyle, cap, width, toolbarOpen, showThree };
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
     } catch {
       /* ignore quota */
     }
-  }, [tool, color, lineStyle, cap, width, toolbarOpen]);
+  }, [tool, color, lineStyle, cap, width, toolbarOpen, showThree]);
 
   useEffect(() => () => window.cancelAnimationFrame(rafRef.current), []);
 
@@ -526,6 +531,7 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
       cap,
       width,
       toolbarOpen,
+      showThree,
       playsOpen,
       playsVersion,
       form,
@@ -541,6 +547,7 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
       setCap: setCapState,
       setWidth: setWidthState,
       setToolbarOpen: setToolbarOpenState,
+      setShowThree: setShowThreeState,
       setPlaysOpen,
       openSave: () => setForm({ mode: "save" }),
       openRename: (play) => setForm({ mode: "rename", play }),
@@ -596,6 +603,7 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
       cap,
       width,
       toolbarOpen,
+      showThree,
       playsOpen,
       playsVersion,
       form,

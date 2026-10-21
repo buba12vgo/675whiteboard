@@ -1,16 +1,11 @@
 import {
   arcPoints,
-  BACKBOARD_INSET,
   BASKET_INSET,
-  CENTER_RADIUS,
   COURT_LENGTH,
   COURT_WIDTH,
-  FT_RADIUS,
   KEY_LENGTH,
   KEY_WIDTH,
   LINE_WIDTH,
-  NO_CHARGE_RADIUS,
-  RIM_RADIUS,
   THREE_ALPHA,
   THREE_CORNER,
   THREE_DX,
@@ -20,7 +15,6 @@ import {
 } from "@/lib/geometry";
 
 const LINE = "#173454";
-const RIM = "#ef5d24";
 
 function trace(ctx: CanvasRenderingContext2D, transform: CourtTransform, points: Meter[]) {
   const first = transform.toScreen(points[0].x, points[0].y);
@@ -57,41 +51,36 @@ function fillMeters(ctx: CanvasRenderingContext2D, transform: CourtTransform, po
   ctx.fill();
 }
 
-function drawBasket(ctx: CanvasRenderingContext2D, transform: CourtTransform, side: "left" | "right") {
-  const sign = side === "left" ? 1 : -1;
-  const baseline = side === "left" ? 0 : COURT_LENGTH;
-  const basketX = side === "left" ? BASKET_INSET : COURT_LENGTH - BASKET_INSET;
+function baselineOf(side: "left" | "right") {
+  return side === "left" ? 0 : COURT_LENGTH;
+}
+
+function sideOnCourt(transform: CourtTransform, side: "left" | "right") {
+  const x = baselineOf(side);
+  return x >= transform.visible.x0 - 0.2 && x <= transform.visible.x1 + 0.2;
+}
+
+/** Closed rectangular lane. No rim, no free-throw circle, no hash marks. */
+function drawLane(ctx: CanvasRenderingContext2D, transform: CourtTransform, side: "left" | "right") {
+  const baseline = baselineOf(side);
   const midY = COURT_WIDTH / 2;
   const laneHalf = KEY_WIDTH / 2;
   const keyEnd = side === "left" ? KEY_LENGTH : COURT_LENGTH - KEY_LENGTH;
-
-  fillMeters(
-    ctx,
-    transform,
-    [
-      { x: baseline, y: midY - laneHalf },
-      { x: keyEnd, y: midY - laneHalf },
-      { x: keyEnd, y: midY + laneHalf },
-      { x: baseline, y: midY + laneHalf },
-    ],
-    "rgba(36, 76, 120, 0.18)",
-  );
-
-  strokeMeters(ctx, transform, [
+  const lane = [
     { x: baseline, y: midY - laneHalf },
     { x: keyEnd, y: midY - laneHalf },
     { x: keyEnd, y: midY + laneHalf },
     { x: baseline, y: midY + laneHalf },
-  ]);
+  ];
+  fillMeters(ctx, transform, lane, "rgba(23, 52, 84, 0.06)");
+  strokeMeters(ctx, transform, lane);
+}
 
-  const ftX = keyEnd;
-  const solid = side === "left" ? [-Math.PI / 2, Math.PI / 2] : [Math.PI / 2, (3 * Math.PI) / 2];
-  const dashed = side === "left" ? [Math.PI / 2, (3 * Math.PI) / 2] : [-Math.PI / 2, Math.PI / 2];
-  strokeMeters(ctx, transform, arcPoints(ftX, midY, FT_RADIUS, solid[0], solid[1], 36));
-  strokeMeters(ctx, transform, arcPoints(ftX, midY, FT_RADIUS, dashed[0], dashed[1], 36), {
-    dash: [0.16, 0.12],
-  });
-
+function drawThree(ctx: CanvasRenderingContext2D, transform: CourtTransform, side: "left" | "right") {
+  const sign = side === "left" ? 1 : -1;
+  const baseline = baselineOf(side);
+  const basketX = side === "left" ? BASKET_INSET : COURT_LENGTH - BASKET_INSET;
+  const midY = COURT_WIDTH / 2;
   const cornerY0 = THREE_CORNER;
   const cornerY1 = COURT_WIDTH - THREE_CORNER;
   const arcX = basketX + sign * THREE_DX;
@@ -106,69 +95,13 @@ function drawBasket(ctx: CanvasRenderingContext2D, transform: CourtTransform, si
   const a0 = side === "left" ? -THREE_ALPHA : Math.PI - THREE_ALPHA;
   const a1 = side === "left" ? THREE_ALPHA : Math.PI + THREE_ALPHA;
   strokeMeters(ctx, transform, arcPoints(basketX, midY, THREE_RADIUS, a0, a1, 56));
-
-  const charge0 = side === "left" ? -Math.PI / 2 : Math.PI / 2;
-  const charge1 = side === "left" ? Math.PI / 2 : (3 * Math.PI) / 2;
-  strokeMeters(ctx, transform, arcPoints(basketX, midY, NO_CHARGE_RADIUS, charge0, charge1, 28), {
-    dash: [0.12, 0.1],
-    width: Math.max(1.2, LINE_WIDTH * 0.8 * transform.scale),
-  });
-
-  const boardX = side === "left" ? BACKBOARD_INSET : COURT_LENGTH - BACKBOARD_INSET;
-  strokeMeters(
-    ctx,
-    transform,
-    [
-      { x: boardX, y: midY - 0.9 },
-      { x: boardX, y: midY + 0.9 },
-    ],
-    { width: Math.max(3, 0.08 * transform.scale), color: "#1c1916" },
-  );
-
-  const rimStart = side === "left" ? basketX - RIM_RADIUS : basketX + RIM_RADIUS;
-  strokeMeters(
-    ctx,
-    transform,
-    [
-      { x: boardX, y: midY },
-      { x: rimStart, y: midY },
-    ],
-    { width: Math.max(1.5, 0.035 * transform.scale), color: "#1c1916" },
-  );
-
-  const rim = transform.toScreen(basketX, midY);
-  ctx.beginPath();
-  ctx.arc(rim.x, rim.y, RIM_RADIUS * transform.scale, 0, Math.PI * 2);
-  ctx.strokeStyle = RIM;
-  ctx.lineWidth = Math.max(2, 0.045 * transform.scale);
-  ctx.setLineDash([]);
-  ctx.stroke();
 }
 
-function woodGrain(ctx: CanvasRenderingContext2D, rect: CourtTransform["rect"]) {
-  ctx.save();
-  ctx.globalAlpha = 0.045;
-  ctx.strokeStyle = "#6a4524";
-  ctx.lineWidth = 1;
-  for (let i = 0; i < 16; i += 1) {
-    const y = rect.y + ((i * 73 + 19) % 100) / 100 * rect.h;
-    const bend = ((i * 17) % 9) - 4;
-    ctx.beginPath();
-    ctx.moveTo(rect.x, y);
-    ctx.bezierCurveTo(
-      rect.x + rect.w * 0.3,
-      y + bend,
-      rect.x + rect.w * 0.65,
-      y - bend,
-      rect.x + rect.w,
-      y + bend * 0.3,
-    );
-    ctx.stroke();
-  }
-  ctx.restore();
-}
+export type CourtPaint = {
+  three: boolean;
+};
 
-export function drawCourt(ctx: CanvasRenderingContext2D, transform: CourtTransform) {
+export function drawCourt(ctx: CanvasRenderingContext2D, transform: CourtTransform, paint: CourtPaint = { three: false }) {
   const { rect, scale } = transform;
   const canvas = ctx.canvas;
   const transformNow = ctx.getTransform();
@@ -183,33 +116,22 @@ export function drawCourt(ctx: CanvasRenderingContext2D, transform: CourtTransfo
   ctx.beginPath();
   ctx.rect(rect.x, rect.y, rect.w, rect.h);
   ctx.clip();
-
-  const grain = ctx.createLinearGradient(rect.x, rect.y, rect.x, rect.y + rect.h);
-  grain.addColorStop(0, "#f4e3c9");
-  grain.addColorStop(0.48, "#e8d2b0");
-  grain.addColorStop(1, "#dcc39b");
-  ctx.fillStyle = grain;
+  ctx.fillStyle = "#f6f1e6";
   ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-  woodGrain(ctx, rect);
 
-  drawBasket(ctx, transform, "left");
-  drawBasket(ctx, transform, "right");
+  for (const side of ["left", "right"] as const) {
+    if (!sideOnCourt(transform, side)) continue;
+    drawLane(ctx, transform, side);
+    if (paint.three) drawThree(ctx, transform, side);
+  }
 
-  const mid = COURT_LENGTH / 2;
-  strokeMeters(ctx, transform, [
-    { x: mid, y: 0 },
-    { x: mid, y: COURT_WIDTH },
-  ]);
-  strokeMeters(ctx, transform, arcPoints(mid, COURT_WIDTH / 2, CENTER_RADIUS, 0, Math.PI * 2, 64));
-
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(rect.x, rect.y, rect.w, rect.h);
-  ctx.clip();
-  ctx.strokeStyle = "rgba(70, 46, 22, 0.16)";
-  ctx.lineWidth = Math.max(10, 0.22 * scale);
-  ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
-  ctx.restore();
+  if (transform.view === "full") {
+    const mid = COURT_LENGTH / 2;
+    strokeMeters(ctx, transform, [
+      { x: mid, y: 0 },
+      { x: mid, y: COURT_WIDTH },
+    ]);
+  }
 
   ctx.restore();
 

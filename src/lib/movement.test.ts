@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { movementByToken, pointAlong, tokensAfterMovements } from "@/lib/movement";
+import { ballHolderId, movementByToken, pointAlong, tokensAfterMovements } from "@/lib/movement";
 import { interpolateTokens } from "@/lib/playback";
 import type { Stroke, Token } from "@/lib/types";
 
@@ -90,6 +90,30 @@ describe("movements", () => {
     });
     const next = tokensAfterMovements([player, other, ball], [pass]);
     expect(next.find((token) => token.id === "ball")).toMatchObject({ x: 2.2, y: 2.4 });
+  });
+
+  it("treats an assist like a pass and ignores an obstacle", () => {
+    const assist = stroke({
+      points: [
+        { x: 2.2, y: 2.4, p: 0.5 },
+        { x: 8, y: 5, p: 0.5 },
+      ],
+      style: "assist",
+    });
+    const cone: Token = { id: "obstacle", kind: "obstacle", label: "", color: "#111", x: 6, y: 6 };
+    const ontoCone = stroke({
+      id: "onto",
+      points: [
+        { x: 6, y: 6, p: 0.5 },
+        { x: 9, y: 9, p: 0.5 },
+      ],
+      style: "solid",
+    });
+    const next = tokensAfterMovements([player, ball, cone], [assist, ontoCone]);
+    expect(next.find((token) => token.id === "ball")).toMatchObject({ x: 8, y: 5 });
+    expect(next.find((token) => token.id === "obstacle")).toMatchObject({ x: 6, y: 6 });
+    expect(ballHolderId([player, ball])).toBe("atk-1");
+    expect(ballHolderId([{ ...ball, x: 12, y: 12 }, player])).toBeNull();
   });
 
   it("follows the pass curve and ignores a shot", () => {

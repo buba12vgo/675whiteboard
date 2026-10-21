@@ -9,7 +9,24 @@ export const PASS_HOLD = 1.8;
 type XY = { x: number; y: number };
 
 function isPlayer(token: Token): boolean {
-  return token.kind !== "ball";
+  return token.kind === "attack" || token.kind === "defense";
+}
+
+function isPass(style: Stroke["style"]): boolean {
+  return style === "dashed" || style === "assist";
+}
+
+/** The attacker who is holding the ball, shown with the possession dot. */
+export function ballHolderId(tokens: Token[]): string | null {
+  const ball = tokens.find((token) => token.kind === "ball");
+  if (!ball) return null;
+  let best: { id: string; dist: number } | null = null;
+  for (const token of tokens) {
+    if (token.kind !== "attack") continue;
+    const dist = Math.hypot(token.x - ball.x, token.y - ball.y);
+    if (dist <= PASS_HOLD && (!best || dist < best.dist)) best = { id: token.id, dist };
+  }
+  return best?.id ?? null;
 }
 
 function remember(
@@ -27,7 +44,7 @@ function remember(
 
 /**
  * Solid strokes move the player they start on.
- * Dashed passes move the ball when they start on it, or on the player holding it.
+ * Dashed passes and assists move the ball when they start on it, or on the player holding it.
  * The closest start wins; a later stroke breaks a tie. Shots and dribbles stay put.
  */
 export function movementByToken(tokens: Token[], strokes: Stroke[]): Map<string, Stroke> {
@@ -50,7 +67,7 @@ export function movementByToken(tokens: Token[], strokes: Stroke[]): Map<string,
       if (chosen) remember(best, chosen.id, stroke, dist, index);
       return;
     }
-    if (stroke.style !== "dashed" || !ball) return;
+    if (!isPass(stroke.style) || !ball) return;
     const toBall = Math.hypot(ball.x - start.x, ball.y - start.y);
     if (toBall <= MOVEMENT_SNAP) {
       remember(best, ball.id, stroke, toBall, index);

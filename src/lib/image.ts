@@ -1,20 +1,9 @@
-import { drawCourt } from "@/lib/court";
+import { drawCourt, type CourtPaint } from "@/lib/court";
 import { fitCourt, type CourtTransform } from "@/lib/geometry";
+import { ballHolderId } from "@/lib/movement";
 import { renderStroke } from "@/lib/strokes";
 import type { CourtView, Stroke, Token } from "@/lib/types";
 import { slugify } from "@/lib/utils";
-
-function roundRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
-) {
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, r);
-}
 
 export function drawTokenGlyph(
   ctx: CanvasRenderingContext2D,
@@ -23,6 +12,7 @@ export function drawTokenGlyph(
   cy: number,
   size: number,
   opacity = 1,
+  holding = false,
 ) {
   ctx.save();
   ctx.globalAlpha = opacity;
@@ -50,25 +40,59 @@ export function drawTokenGlyph(
     return;
   }
 
-  const defense = token.kind === "defense";
   const radius = size / 2;
-  ctx.beginPath();
-  if (defense) roundRect(ctx, -radius, -radius, size, size, size * 0.28);
-  else ctx.arc(0, 0, radius, 0, Math.PI * 2);
-  ctx.fillStyle = token.color;
-  ctx.shadowColor = "rgba(0,0,0,0.28)";
-  ctx.shadowBlur = size * 0.12;
-  ctx.shadowOffsetY = size * 0.04;
-  ctx.fill();
-  ctx.shadowColor = "transparent";
-  ctx.lineWidth = Math.max(2, size * 0.055);
-  ctx.strokeStyle = defense ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.28)";
-  ctx.stroke();
-  ctx.fillStyle = "#fff";
-  ctx.font = `700 ${Math.round(size * (token.label.length > 2 ? 0.3 : 0.4))}px Outfit, sans-serif`;
+  ctx.lineWidth = Math.max(2, size * 0.08);
+  ctx.lineCap = "round";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(token.label, 0, size * 0.03);
+  ctx.font = `700 ${Math.round(size * 0.36)}px Outfit, sans-serif`;
+
+  if (token.kind === "obstacle") {
+    const box = size * 0.62;
+    ctx.strokeStyle = "#1a2332";
+    ctx.strokeRect(-box / 2, -box / 2, box, box);
+    ctx.restore();
+    return;
+  }
+
+  if (token.kind === "defense") {
+    ctx.strokeStyle = token.color;
+    ctx.beginPath();
+    ctx.moveTo(-radius * 0.72, -radius * 0.72);
+    ctx.lineTo(radius * 0.72, radius * 0.72);
+    ctx.moveTo(radius * 0.72, -radius * 0.72);
+    ctx.lineTo(-radius * 0.72, radius * 0.72);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 0.34, 0, Math.PI * 2);
+    ctx.fillStyle = "#f6f1e6";
+    ctx.fill();
+    ctx.lineWidth = Math.max(1.5, size * 0.04);
+    ctx.stroke();
+    ctx.fillStyle = token.color;
+    ctx.fillText(token.label.replace(/^X/i, ""), 0, size * 0.02);
+    ctx.restore();
+    return;
+  }
+
+  ctx.beginPath();
+  ctx.arc(0, 0, radius * 0.86, 0, Math.PI * 2);
+  ctx.fillStyle = "#f6f1e6";
+  ctx.fill();
+  ctx.strokeStyle = token.color;
+  ctx.stroke();
+  ctx.fillStyle = token.color;
+  ctx.fillText(token.label, 0, size * 0.02);
+  if (holding) {
+    const dot = radius * 0.38;
+    ctx.beginPath();
+    ctx.arc(radius * 0.62, radius * 0.62, dot, 0, Math.PI * 2);
+    ctx.fillStyle = "#e86b1f";
+    ctx.fill();
+    ctx.lineWidth = Math.max(1.2, size * 0.04);
+    ctx.strokeStyle = "#1a120c";
+    ctx.stroke();
+  }
   ctx.restore();
 }
 
@@ -77,6 +101,7 @@ export function renderBoardCanvas(
   orientationHint: CourtTransform["orientation"],
   strokes: Stroke[],
   tokens: Array<Token & { opacity?: number }>,
+  paint: CourtPaint = { three: false },
 ): HTMLCanvasElement {
   const pad = 56;
   let width = 2400;
@@ -97,7 +122,7 @@ export function renderBoardCanvas(
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("canvas");
   const transform = fitCourt(view, width, height, pad);
-  drawCourt(ctx, transform);
+  drawCourt(ctx, transform, paint);
   ctx.save();
   ctx.beginPath();
   ctx.rect(transform.rect.x, transform.rect.y, transform.rect.w, transform.rect.h);
@@ -106,11 +131,12 @@ export function renderBoardCanvas(
     renderStroke(ctx, stroke, transform.toScreen, transform.scale, true);
   }
   const tokenSize = transform.scale * 0.62;
+  const holder = ballHolderId(tokens);
   const ordered = [...tokens].sort((a, b) => (a.kind === "ball" ? 1 : 0) - (b.kind === "ball" ? 1 : 0));
   for (const token of ordered) {
     const screen = transform.toScreen(token.x, token.y);
     const size = token.kind === "ball" ? tokenSize * 0.82 : tokenSize;
-    drawTokenGlyph(ctx, token, screen.x, screen.y, size, token.opacity ?? 1);
+    drawTokenGlyph(ctx, token, screen.x, screen.y, size, token.opacity ?? 1, token.id === holder);
   }
   ctx.restore();
   return canvas;
