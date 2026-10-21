@@ -443,8 +443,8 @@ export function Board() {
                       style={{
                         left: `${DEFENSE_TIP_X * 100}%`,
                         top: `${DEFENSE_TIP_Y * 100}%`,
-                        width: 26,
-                        height: 26,
+                        width: 22,
+                        height: 22,
                         transform: "translate(-50%, -50%)",
                         touchAction: "none",
                       }}
@@ -469,8 +469,8 @@ export function Board() {
                     style={
                       defense
                         ? {
-                            left: `calc(50% + ${circle * 0.42}px)`,
-                            top: `calc(50% - ${circle * 0.42}px)`,
+                            left: `calc(50% + ${circle * 0.46}px)`,
+                            top: `calc(50% + ${circle * 0.46}px)`,
                             transform: "translate(-50%, -50%)",
                           }
                         : { right: -4, top: -4 }

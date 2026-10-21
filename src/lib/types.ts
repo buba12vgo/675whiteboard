@@ -32,7 +32,7 @@ export type Token = {
   color: string;
   x: number;
   y: number;
-  /** Degrees clockwise. 0 keeps the defensive crescent opening upward. */
+  /** Degrees clockwise. 0 keeps the crescent on the upper half, facing the basket. */
   rotation?: number;
 };
 
