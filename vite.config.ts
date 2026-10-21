@@ -10,10 +10,10 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.svg", "icons/*.png"],
+      includeAssets: ["favicon.ico", "favicon-32.png", "icons/*.png"],
       manifest: {
-        name: "Pizarra — Táctica de baloncesto",
-        short_name: "Pizarra",
+        name: "675 Pizarra",
+        short_name: "675",
         description:
           "Pizarra táctica de baloncesto para preparar jugadas y ejercicios, también sin conexión.",
         lang: "es",
@@ -24,8 +24,8 @@ export default defineConfig({
         display: "standalone",
         display_override: ["fullscreen", "standalone"],
         orientation: "any",
-        background_color: "#141210",
-        theme_color: "#141210",
+        background_color: "#eeebe2",
+        theme_color: "#07111f",
         categories: ["sports", "education"],
         icons: [
           {

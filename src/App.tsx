@@ -120,6 +120,7 @@ function TopBar({ mode, onSignOut, email }: { mode: "rail" | "dock"; onSignOut: 
   return (
     <header className="glass flex flex-col gap-2 rounded-3xl px-2 py-2 sm:px-3">
       <div className="toolbar-scroll flex items-center gap-1.5 overflow-x-auto">
+        <img src="/icons/apple-touch-icon.png" alt="" width={32} height={32} className="h-8 w-8 shrink-0 rounded-md" />
         <button type="button" onClick={board.openSave} className="min-w-0 flex-1 text-left sm:flex-none sm:max-w-[16rem]">
           <span className="block truncate font-display text-base font-semibold tracking-tight">{label}</span>
           <span className="flex items-center gap-1.5 text-[11px] text-muted">
