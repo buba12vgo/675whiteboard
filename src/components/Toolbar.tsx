@@ -14,6 +14,8 @@ import {
 import type { ReactNode, Ref } from "react";
 import { IconArrow, IconAssist, IconDashed, IconDribble, IconFullCourt, IconHalfCourt, IconNone, IconShot, IconSolid, IconTee } from "@/components/icons";
 import { COURT_FLOORS, FLAT_COLORS, type CourtFloor } from "@/lib/court";
+import { DEFENSE_SCALE } from "@/lib/defense-mark";
+import { ROLE_SWATCHES, roleColor } from "@/lib/presentation";
 import { Button } from "@/components/ui/button";
 import { ROSTER } from "@/lib/tokens";
 import { PEN_COLORS, WIDTHS } from "@/lib/types";
@@ -229,6 +231,10 @@ export function Toolbar({ mode }: { mode: "rail" | "dock" }) {
               className="z-50 w-72 rounded-2xl border border-line bg-panel p-3 shadow-2xl"
             >
               <div className="plays-scroll max-h-[70dvh] overflow-y-auto pr-1">
+                <div className="mb-2 space-y-2 border-b border-line pb-3">
+                  <ColorPick title="Ataque" value={board.attackColor} onPick={board.setAttackColor} />
+                  <ColorPick title="Defensa" value={board.defenseColor} onPick={board.setDefenseColor} />
+                </div>
                 <RosterGroup title="Ataque" ids={ROSTER.filter((item) => item.kind === "attack").map((item) => item.id)} />
                 <RosterGroup title="Defensa" ids={ROSTER.filter((item) => item.kind === "defense").map((item) => item.id)} />
                 <RosterGroup title="Balón" ids={["ball"]} />
@@ -270,10 +276,19 @@ function RosterGroup({ title, ids }: { title: string; ids: string[] }) {
             onClick={() => board.toggleRosterToken(id)}
             className="flex h-12 w-full items-center gap-3 rounded-xl px-2 text-left hover:bg-white/5"
           >
-            <TokenMark
-              token={{ id: entry.id, kind: entry.kind, label: entry.label, color: entry.color, x: 0, y: 0 }}
-              size={32}
-            />
+            <span className="grid h-10 w-10 shrink-0 place-items-center">
+              <TokenMark
+                token={{
+                  id: entry.id,
+                  kind: entry.kind,
+                  label: entry.label,
+                  color: roleColor(entry.kind, board.attackColor, board.defenseColor, entry.color),
+                  x: 0,
+                  y: 0,
+                }}
+                size={entry.kind === "defense" ? 30 * DEFENSE_SCALE : entry.kind === "ball" ? 22 : 30}
+              />
+            </span>
             <span className="flex-1 text-sm">
               {entry.kind === "ball" ? "Balón" : entry.kind === "obstacle" ? "Obstáculo" : entry.label}
             </span>
@@ -288,6 +303,33 @@ function RosterGroup({ title, ids }: { title: string; ids: string[] }) {
           </button>
         );
       })}
+    </div>
+  );
+}
+
+function ColorPick({ title, value, onPick }: { title: string; value: string; onPick: (color: string) => void }) {
+  return (
+    <div className="flex items-center gap-2 px-1">
+      <span className="w-16 text-xs uppercase tracking-wide text-muted">{title}</span>
+      <span className="flex flex-1 justify-between">
+        {ROLE_SWATCHES.map((swatch) => {
+          const on = value === swatch.value;
+          return (
+            <button
+              key={swatch.id}
+              type="button"
+              aria-label={`${title} ${swatch.label}`}
+              aria-pressed={on}
+              onClick={() => onPick(swatch.value)}
+              className={cn(
+                "h-6 w-6 rounded-full",
+                on ? "ring-2 ring-amber ring-offset-2 ring-offset-panel" : "ring-1 ring-white/25",
+              )}
+              style={{ background: swatch.value }}
+            />
+          );
+        })}
+      </span>
     </div>
   );
 }

@@ -1,7 +1,17 @@
 import { drawCourt, type CourtPaint } from "@/lib/court";
-import { DEFENSE_SCALE, drawDefenseMark } from "@/lib/defense-mark";
+import {
+  BALL_BOX,
+  BALL_DRAW_R,
+  DEFENSE_SCALE,
+  DISC_FILL,
+  discOuterPx,
+  drawAttackMark,
+  drawBallMark,
+  drawDefenseMark,
+} from "@/lib/defense-mark";
 import { fitCourt, type CourtTransform } from "@/lib/geometry";
 import { ballHolderId } from "@/lib/movement";
+import { ATTACK_COLOR, DEFENSE_COLOR, ballBesideHolder, roleColor } from "@/lib/presentation";
 import { renderStroke } from "@/lib/strokes";
 import type { CourtView, Stroke, Token } from "@/lib/types";
 import { slugify } from "@/lib/utils";
@@ -13,45 +23,26 @@ export function drawTokenGlyph(
   cy: number,
   size: number,
   opacity = 1,
-  holding = false,
 ) {
   ctx.save();
   ctx.globalAlpha = opacity;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.translate(cx, cy);
   if (token.kind === "ball") {
-    const r = size * 0.34;
-    ctx.beginPath();
-    ctx.arc(0, 0, r, 0, Math.PI * 2);
-    ctx.fillStyle = "#e86b1f";
-    ctx.fill();
-    ctx.lineWidth = Math.max(1.4, size * 0.045);
-    ctx.strokeStyle = "#1a120c";
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(-r, 0);
-    ctx.lineTo(r, 0);
-    ctx.moveTo(0, -r);
-    ctx.lineTo(0, r);
-    ctx.moveTo(-r * 0.72, -r * 0.55);
-    ctx.bezierCurveTo(-r * 0.1, -r * 0.2, -r * 0.1, r * 0.2, -r * 0.72, r * 0.55);
-    ctx.moveTo(r * 0.72, -r * 0.55);
-    ctx.bezierCurveTo(r * 0.1, -r * 0.2, r * 0.1, r * 0.2, r * 0.72, r * 0.55);
-    ctx.stroke();
+    drawBallMark(ctx, size);
     ctx.restore();
     return;
   }
 
-  const radius = size / 2;
-  ctx.lineWidth = Math.max(2, size * 0.08);
-  ctx.lineCap = "round";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.font = `700 ${Math.round(size * 0.36)}px Outfit, sans-serif`;
-
   if (token.kind === "obstacle") {
     const box = size * 0.62;
+    const stroke = Math.max(2, size * 0.075);
+    ctx.lineWidth = stroke;
     ctx.strokeStyle = "#1a2332";
     ctx.strokeRect(-box / 2, -box / 2, box, box);
+    ctx.fillStyle = DISC_FILL;
+    ctx.fillRect(-box / 2 + stroke / 2, -box / 2 + stroke / 2, box - stroke, box - stroke);
     ctx.restore();
     return;
   }
@@ -62,24 +53,7 @@ export function drawTokenGlyph(
     return;
   }
 
-  ctx.beginPath();
-  ctx.arc(0, 0, radius * 0.86, 0, Math.PI * 2);
-  ctx.fillStyle = "#f6f1e6";
-  ctx.fill();
-  ctx.strokeStyle = token.color;
-  ctx.stroke();
-  ctx.fillStyle = token.color;
-  ctx.fillText(token.label, 0, size * 0.02);
-  if (holding) {
-    const dot = radius * 0.38;
-    ctx.beginPath();
-    ctx.arc(radius * 0.62, radius * 0.62, dot, 0, Math.PI * 2);
-    ctx.fillStyle = "#e86b1f";
-    ctx.fill();
-    ctx.lineWidth = Math.max(1.2, size * 0.04);
-    ctx.strokeStyle = "#1a120c";
-    ctx.stroke();
-  }
+  drawAttackMark(ctx, token.color, token.label, size);
   ctx.restore();
 }
 
@@ -88,7 +62,7 @@ export function renderBoardCanvas(
   orientationHint: CourtTransform["orientation"],
   strokes: Stroke[],
   tokens: Array<Token & { opacity?: number }>,
-  paint: CourtPaint = { three: true, floor: "light", flatColor: "#1d4e89" },
+  paint: CourtPaint & { attack?: string; defense?: string } = { three: true, floor: "light", flatColor: "#1d4e89" },
 ): HTMLCanvasElement {
   const pad = 56;
   let width = 2400;
@@ -118,13 +92,28 @@ export function renderBoardCanvas(
     renderStroke(ctx, stroke, transform.toScreen, transform.scale, true);
   }
   const tokenSize = transform.scale * 0.62;
-  const holder = ballHolderId(tokens);
+  const attack = paint.attack ?? ATTACK_COLOR;
+  const defense = paint.defense ?? DEFENSE_COLOR;
+  const holderId = ballHolderId(tokens);
+  const holder = holderId ? tokens.find((token) => token.id === holderId) : undefined;
+  const ballDiameter = tokenSize * BALL_BOX * BALL_DRAW_R * 2;
   const ordered = [...tokens].sort((a, b) => (a.kind === "ball" ? 1 : 0) - (b.kind === "ball" ? 1 : 0));
   for (const token of ordered) {
-    const screen = transform.toScreen(token.x, token.y);
+    const at =
+      token.kind === "ball" && holder
+        ? ballBesideHolder(holder, transform.toScreen, transform.toCourt, discOuterPx(tokenSize), ballDiameter)
+        : token;
+    const screen = transform.toScreen(at.x, at.y);
     const size =
-      token.kind === "ball" ? tokenSize * 0.82 : token.kind === "defense" ? tokenSize * DEFENSE_SCALE : tokenSize;
-    drawTokenGlyph(ctx, token, screen.x, screen.y, size, token.opacity ?? 1, token.id === holder);
+      token.kind === "ball"
+        ? tokenSize * BALL_BOX
+        : token.kind === "defense"
+          ? tokenSize * DEFENSE_SCALE
+          : token.kind === "obstacle"
+            ? tokenSize * 0.86
+            : tokenSize;
+    const shown = { ...token, color: roleColor(token.kind, attack, defense, token.color) };
+    drawTokenGlyph(ctx, shown, screen.x, screen.y, size, token.opacity ?? 1);
   }
   ctx.restore();
   return canvas;

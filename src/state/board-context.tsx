@@ -14,6 +14,7 @@ import {
 import { cloudDeletePlay, cloudLoadDraft, cloudPutPlay, cloudSaveDraft, subscribePlays } from "@/lib/cloud";
 import { getPlay, listPlays, loadDraftRecord, putPlay, removePlay, saveDraft, syncPlays } from "@/lib/db";
 import { FLAT_COLORS, FLOOR_DEFAULT_VERSION, resolveFloorSetting, type CourtFloor } from "@/lib/court";
+import { ATTACK_COLOR, DEFENSE_COLOR, isRoleColor } from "@/lib/presentation";
 import { downloadJson, shareOrDownload } from "@/lib/image";
 import { pngFilename } from "@/lib/image";
 import { draftFromPlay, parsePlays, playFromDraft, serializePlays } from "@/lib/schema";
@@ -44,6 +45,8 @@ type Settings = {
   floor: CourtFloor;
   flatColor: string;
   floorVersion: number;
+  attackColor: string;
+  defenseColor: string;
 };
 
 type FormState = { mode: "save" } | { mode: "rename"; play: Play };
@@ -75,6 +78,8 @@ type BoardApi = {
   showThree: boolean;
   floor: CourtFloor;
   flatColor: string;
+  attackColor: string;
+  defenseColor: string;
   playsOpen: boolean;
   playsVersion: number;
   form: FormState | null;
@@ -93,6 +98,8 @@ type BoardApi = {
   setShowThree: (show: boolean) => void;
   setFloor: (floor: CourtFloor) => void;
   setFlatColor: (color: string) => void;
+  setAttackColor: (color: string) => void;
+  setDefenseColor: (color: string) => void;
   setPlaysOpen: (open: boolean) => void;
   openSave: () => void;
   openRename: (play: Play) => void;
@@ -145,6 +152,8 @@ function loadSettings(): Settings {
     floor: "light",
     flatColor: FLAT_COLORS[0].value,
     floorVersion: FLOOR_DEFAULT_VERSION,
+    attackColor: ATTACK_COLOR,
+    defenseColor: DEFENSE_COLOR,
   };
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
@@ -157,6 +166,8 @@ function loadSettings(): Settings {
       floor: floorChoice.floor,
       floorVersion: floorChoice.floorVersion,
       flatColor: typeof parsed.flatColor === "string" ? parsed.flatColor : fallback.flatColor,
+      attackColor: isRoleColor(parsed.attackColor) ? parsed.attackColor : ATTACK_COLOR,
+      defenseColor: isRoleColor(parsed.defenseColor) ? parsed.defenseColor : DEFENSE_COLOR,
       showThree: typeof parsed.showThree === "boolean" ? parsed.showThree : true,
     };
   } catch {
@@ -195,6 +206,8 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
   const [showThree, setShowThreeState] = useState(settings.showThree);
   const [floor, setFloorState] = useState<CourtFloor>(settings.floor);
   const [flatColor, setFlatColorState] = useState(settings.flatColor);
+  const [attackColor, setAttackColorState] = useState(settings.attackColor);
+  const [defenseColor, setDefenseColorState] = useState(settings.defenseColor);
   const [ready, setReady] = useReducer((_: boolean, next: boolean) => next, false);
   const [persistError, setPersistError] = useReducer((_: boolean, next: boolean) => next, false);
   const [playsOpen, setPlaysOpen] = useReducer((_: boolean, next: boolean) => next, false);
@@ -330,13 +343,15 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
       floor,
       flatColor,
       floorVersion: FLOOR_DEFAULT_VERSION,
+      attackColor,
+      defenseColor,
     };
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
     } catch {
       /* ignore quota */
     }
-  }, [tool, color, lineStyle, cap, width, toolbarOpen, showThree, floor, flatColor]);
+  }, [tool, color, lineStyle, cap, width, toolbarOpen, showThree, floor, flatColor, attackColor, defenseColor]);
 
   useEffect(() => () => window.cancelAnimationFrame(rafRef.current), []);
 
@@ -594,6 +609,8 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
       showThree,
       floor,
       flatColor,
+      attackColor,
+      defenseColor,
       playsOpen,
       playsVersion,
       form,
@@ -612,6 +629,8 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
       setShowThree: setShowThreeState,
       setFloor: setFloorState,
       setFlatColor: setFlatColorState,
+      setAttackColor: setAttackColorState,
+      setDefenseColor: setDefenseColorState,
       setPlaysOpen,
       openSave: () => setForm({ mode: "save" }),
       openRename: (play) => setForm({ mode: "rename", play }),
@@ -676,6 +695,8 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
       showThree,
       floor,
       flatColor,
+      attackColor,
+      defenseColor,
       playsOpen,
       playsVersion,
       form,

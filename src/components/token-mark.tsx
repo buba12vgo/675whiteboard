@@ -1,119 +1,142 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { DEFENSE_CIRCLE_R, DEFENSE_CRESCENT, DEFENSE_RING, DEFENSE_VIEW, defenseNumber } from "@/lib/defense-mark";
+import {
+  ATTACK_VIEW,
+  BALL_DRAW_R,
+  BALL_FILL,
+  BALL_INK,
+  DEFENSE_CIRCLE_R,
+  DEFENSE_CRESCENT,
+  DEFENSE_RING,
+  DEFENSE_VIEW,
+  DISC_FILL,
+  MARK_FONT,
+  defenseNumber,
+} from "@/lib/defense-mark";
 import type { Token } from "@/lib/types";
 
-type MarkProps = {
-  token: Token;
-  size: number;
-  holding?: boolean;
+type Handlers = {
   onPointerDown?: (event: ReactPointerEvent<SVGElement>) => void;
   onPointerMove?: (event: ReactPointerEvent<SVGElement>) => void;
   onPointerUp?: () => void;
 };
 
-export function TokenMark({ token, size, holding = false, onPointerDown, onPointerMove, onPointerUp }: MarkProps) {
-  if (token.kind === "ball") {
-    return (
-      <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
-        <circle cx="32" cy="32" r="28" fill="#e86b1f" stroke="#1a120c" strokeWidth="3" />
-        <path d="M6 32h52M32 6v52" stroke="#1a120c" strokeWidth="2.5" fill="none" />
-        <path
-          d="M14 14c9 8 9 28 0 36M50 14c-9 8-9 28 0 36"
-          stroke="#1a120c"
-          strokeWidth="2.5"
-          fill="none"
-        />
-      </svg>
-    );
-  }
+type MarkProps = Handlers & {
+  token: Token;
+  size: number;
+};
+
+const svgProps = {
+  "aria-hidden": true as const,
+  shapeRendering: "geometricPrecision" as const,
+  style: { display: "block", overflow: "visible" },
+};
+
+export function TokenMark({ token, size, onPointerDown, onPointerMove, onPointerUp }: MarkProps) {
+  if (token.kind === "ball") return <BallMark size={size} />;
   if (token.kind === "obstacle") {
     const box = size * 0.72;
+    const stroke = Math.max(2, size * 0.075);
     return (
       <span
         aria-hidden="true"
         style={{
           width: box,
           height: box,
-          background: "#f6f1e6",
-          border: `${Math.max(2, size * 0.08)}px solid #1a2332`,
+          background: DISC_FILL,
+          border: `${stroke}px solid #1a2332`,
         }}
       />
     );
   }
   if (token.kind === "defense") {
-    const half = DEFENSE_VIEW / 2;
     return (
-      <svg
-        width={size}
-        height={size}
-        viewBox={`${-half} ${-half} ${DEFENSE_VIEW} ${DEFENSE_VIEW}`}
-        aria-hidden="true"
-        style={{ pointerEvents: "none" }}
-      >
-        <path
-          d={DEFENSE_CRESCENT}
-          fill={token.color}
-          style={{ pointerEvents: "auto" }}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-        />
-        <circle
-          cx="0"
-          cy="0"
-          r={DEFENSE_CIRCLE_R}
-          fill="#f6f1e6"
-          stroke={token.color}
-          strokeWidth={DEFENSE_RING}
-          style={{ pointerEvents: "auto" }}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-        />
-        <text
-          x="0"
-          y="0.5"
-          textAnchor="middle"
-          dominantBaseline="central"
-          fontSize="18"
-          fontWeight="700"
-          fill={token.color}
-          fontFamily="Outfit, sans-serif"
-        >
-          {defenseNumber(token.label)}
-        </text>
-      </svg>
+      <DefenseMark
+        size={size}
+        color={token.color}
+        label={defenseNumber(token.label)}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+      />
     );
   }
-  const dot = Math.max(12, size * 0.32);
+  return <DiscMark size={size} color={token.color} label={token.label} view={ATTACK_VIEW} />;
+}
+
+function DiscFace({ color, label, handlers }: { color: string; label: string; handlers?: Handlers }) {
   return (
-    <span
-      className="relative grid place-items-center font-bold leading-none"
-      style={{
-        width: size,
-        height: size,
-        borderRadius: "999px",
-        background: "#f6f1e6",
-        color: token.color,
-        fontSize: size * 0.42,
-        border: `${Math.max(2, size * 0.07)}px solid ${token.color}`,
-      }}
+    <>
+      <circle
+        cx="0"
+        cy="0"
+        r={DEFENSE_CIRCLE_R}
+        fill={DISC_FILL}
+        stroke={color}
+        strokeWidth={DEFENSE_RING}
+        style={{ pointerEvents: handlers ? "auto" : "none" }}
+        {...handlers}
+      />
+      <text
+        x="0"
+        y="1.2"
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontSize={MARK_FONT}
+        fontWeight="600"
+        fill={color}
+        fontFamily="Outfit, sans-serif"
+        style={{ pointerEvents: "none" }}
+      >
+        {label}
+      </text>
+    </>
+  );
+}
+
+function DiscMark({ size, color, label, view }: { size: number; color: string; label: string; view: number }) {
+  const half = view / 2;
+  return (
+    <svg width={size} height={size} viewBox={`${-half} ${-half} ${view} ${view}`} {...svgProps}>
+      <DiscFace color={color} label={label} />
+    </svg>
+  );
+}
+
+function DefenseMark({ size, color, label, ...handlers }: { size: number; color: string; label: string } & Handlers) {
+  const half = DEFENSE_VIEW / 2;
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox={`${-half} ${-half} ${DEFENSE_VIEW} ${DEFENSE_VIEW}`}
+      {...svgProps}
+      style={{ ...svgProps.style, pointerEvents: "none" }}
     >
-      {token.label}
-      {holding && (
-        <span
-          aria-hidden="true"
-          className="absolute rounded-full"
-          style={{
-            right: -dot * 0.15,
-            bottom: -dot * 0.15,
-            width: dot,
-            height: dot,
-            background: "#e86b1f",
-            border: "2px solid #1a120c",
-          }}
-        />
-      )}
-    </span>
+      <path
+        d={DEFENSE_CRESCENT}
+        fill={color}
+        fillRule="evenodd"
+        style={{ pointerEvents: "auto" }}
+        {...handlers}
+      />
+      <DiscFace color={color} label={label} handlers={handlers} />
+    </svg>
+  );
+}
+
+function BallMark({ size }: { size: number }) {
+  const r = 100 * BALL_DRAW_R;
+  const ring = 5.5;
+  const seam = r - ring;
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" {...svgProps}>
+      <circle cx="50" cy="50" r={r} fill={BALL_FILL} stroke={BALL_INK} strokeWidth={ring} />
+      <path
+        d={`M ${50 - seam} 50 H ${50 + seam} M 50 ${50 - seam} V ${50 + seam}`}
+        stroke={BALL_INK}
+        strokeWidth="3.6"
+        fill="none"
+      />
+    </svg>
   );
 }

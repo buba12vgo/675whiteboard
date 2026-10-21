@@ -1,39 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { defenseCrescentSpec } from "./defense-mark.ts";
+import { CRESCENT_RATIO, MARK_R, defenseCrescentSpec } from "./defense-mark.ts";
 
 describe("defender crescent", () => {
-  it("is a half-ring with sharp side tips and no fill below them", () => {
+  it("is one symmetric circular crescent, 18% of the radius, ending on the equator", () => {
     const spec = defenseCrescentSpec();
-    expect(spec.spanDeg).toBeCloseTo(180);
+    expect(spec.path.match(/A /g)?.length).toBe(3);
+    expect(spec.path.match(/L /g)?.length).toBe(2);
+    expect(spec.topThickness / spec.radius).toBeCloseTo(CRESCENT_RATIO);
+    expect(spec.topThickness / MARK_R).toBeGreaterThanOrEqual(0.15);
+    expect(spec.topThickness / MARK_R).toBeLessThanOrEqual(0.2);
     expect(spec.rightTip.x).toBeCloseTo(-spec.leftTip.x);
-    expect(spec.rightTip.y).toBeCloseTo(spec.leftTip.y);
-    expect(Math.abs(spec.rightTip.y)).toBeLessThan(0.4);
-    expect(spec.rightTip.x).toBeGreaterThan(spec.innerR);
-    expect(spec.topOuter.y).toBeLessThan(spec.topInner.y);
-    const thick = spec.topInner.y - spec.topOuter.y;
-    expect(thick).toBeGreaterThan(spec.innerR * 0.25);
-    expect(thick).toBeLessThan(spec.innerR * 0.5);
-    expect(spec.lowestY).toBeLessThan(0.6);
-    expect(spec.highestY).toBeLessThan(-spec.innerR);
-    let maxX = 0;
-    for (const point of spec.points) {
-      expect(point.y).toBeLessThanOrEqual(0.6);
-      maxX = Math.max(maxX, Math.abs(point.x));
-    }
-    expect(maxX).toBeLessThanOrEqual(spec.rightTip.x + 0.75);
-    expect(spec.rightTip.x).toBeGreaterThan(maxX - 0.75);
-    const area = shoelace(spec.points);
-    const box = (spec.rightTip.x * 2) * (spec.lowestY - spec.highestY);
-    expect(area).toBeGreaterThan(40);
-    expect(area).toBeLessThan(box * 0.55);
+    expect(spec.rightTip.y).toBeCloseTo(0);
+    expect(spec.leftTip.y).toBeCloseTo(0);
+    expect(spec.apex.x).toBeCloseTo(0);
+    expect(spec.apex.y).toBeCloseTo(-(spec.edge + spec.topThickness));
+    expect(Math.abs(Math.abs(spec.rightTip.x) - spec.edge)).toBeLessThan(0.6);
+    expect(Math.abs(spec.rightTip.x)).toBeLessThan(spec.radius + spec.ring);
+    expect(spec.outerCenterY).toBeLessThan(0);
+    expect(Math.hypot(spec.rightTip.x, spec.rightTip.y - spec.outerCenterY)).toBeCloseTo(spec.outerR);
+    expect(Math.hypot(spec.apex.x, spec.apex.y - spec.outerCenterY)).toBeCloseTo(spec.outerR);
+    expect(spec.innerR).toBeLessThan(spec.radius);
   });
 });
-
-function shoelace(points: Array<{ x: number; y: number }>): number {
-  let sum = 0;
-  for (let i = 0; i < points.length; i += 1) {
-    const next = points[(i + 1) % points.length];
-    sum += points[i].x * next.y - next.x * points[i].y;
-  }
-  return Math.abs(sum) / 2;
-}

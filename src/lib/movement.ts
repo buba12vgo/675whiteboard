@@ -16,7 +16,7 @@ function isPass(style: Stroke["style"]): boolean {
   return style === "dashed" || style === "assist";
 }
 
-/** The attacker who is holding the ball, shown with the possession dot. */
+/** The attacker who has the ball. The board draws the ball beside that player. */
 export function ballHolderId(tokens: Token[]): string | null {
   const ball = tokens.find((token) => token.kind === "ball");
   if (!ball) return null;

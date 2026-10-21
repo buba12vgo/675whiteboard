@@ -2,13 +2,17 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { drawCourt } from "@/lib/court";
 import {
+  BALL_BOX,
+  BALL_DRAW_R,
   DEFENSE_CIRCLE_R,
   DEFENSE_LOCAL_ANGLE,
   DEFENSE_SCALE,
   DEFENSE_TIP_X,
   DEFENSE_TIP_Y,
   DEFENSE_VIEW,
+  discOuterPx,
 } from "@/lib/defense-mark";
+import { ballBesideHolder, roleColor } from "@/lib/presentation";
 import { fitCourt, type CourtTransform } from "@/lib/geometry";
 import { canvasToPng, renderBoardCanvas } from "@/lib/image";
 import { ballHolderId } from "@/lib/movement";
@@ -47,6 +51,8 @@ export function Board() {
     showThree,
     floor,
     flatColor,
+    attackColor,
+    defenseColor,
   } = useBoard();
   const play = usePlayback();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -54,6 +60,7 @@ export function Board() {
   const inkRef = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [selected, setSelected] = useState<string | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
   const transformRef = useRef<CourtTransform | null>(null);
   const toolRef = useRef({ tool, color, lineStyle, cap, width });
@@ -155,11 +162,17 @@ export function Board() {
       const doc = stateRef.current.doc;
       const current = doc.frames[doc.frameIndex];
       const hint = transformRef.current?.orientation ?? (doc.view === "half" ? "half" : "length-x");
-      const canvas = renderBoardCanvas(doc.view, hint, current.strokes, current.tokens, { three: showThree, floor, flatColor });
+      const canvas = renderBoardCanvas(doc.view, hint, current.strokes, current.tokens, {
+        three: showThree,
+        floor,
+        flatColor,
+        attack: attackColor,
+        defense: defenseColor,
+      });
       return canvasToPng(canvas);
     });
     return () => registerExporter(null);
-  }, [registerExporter, showThree, floor, flatColor]);
+  }, [registerExporter, showThree, floor, flatColor, attackColor, defenseColor]);
 
   function eventPoint(event: PointerEvent): Point | null {
     const canvas = inkRef.current;
@@ -358,7 +371,7 @@ export function Board() {
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   }
 
-  function beginMove(event: React.PointerEvent, token: { id: string; x: number; y: number }) {
+  function beginMove(event: React.PointerEvent, token: { id: string; x: number; y: number }, displayed: { x: number; y: number }) {
     if (tool !== "move" || play.playing) return;
     const current = transformRef.current;
     if (!current) return;
@@ -366,7 +379,7 @@ export function Board() {
     event.preventDefault();
     setSelected(token.id);
     event.currentTarget.setPointerCapture(event.pointerId);
-    const origin = current.toScreen(token.x, token.y);
+    const origin = current.toScreen(displayed.x, displayed.y);
     dragRef.current = {
       id: token.id,
       pointer: event.pointerId,
@@ -390,6 +403,7 @@ export function Board() {
     if (!drag.recorded) {
       if (Math.hypot(dx, dy) < 3) return;
       drag.recorded = true;
+      setDragId(tokenId);
       moveToken(tokenId, x, y, true);
     } else {
       moveToken(tokenId, x, y, false);
@@ -474,9 +488,16 @@ export function Board() {
           }}
         >
           {displayTokens.map((token) => {
-            const screen = transform.toScreen(token.x, token.y);
-            const size = token.kind === "ball" ? tokenSize * 0.72 : token.kind === "obstacle" ? tokenSize * 0.86 : tokenSize;
             const defense = token.kind === "defense";
+            const shown = { ...token, color: roleColor(token.kind, attackColor, defenseColor, token.color) };
+            const holder = holderId ? displayTokens.find((item) => item.id === holderId) : undefined;
+            const ballDiameter = tokenSize * BALL_BOX * BALL_DRAW_R * 2;
+            const point =
+              token.kind === "ball" && holder && dragId !== token.id && !play.playing
+                ? ballBesideHolder(holder, transform.toScreen, transform.toCourt, discOuterPx(tokenSize), ballDiameter)
+                : { x: token.x, y: token.y };
+            const screen = transform.toScreen(point.x, point.y);
+            const size = token.kind === "ball" ? tokenSize * BALL_BOX : token.kind === "obstacle" ? tokenSize * 0.86 : tokenSize;
             const box = defense ? tokenSize * DEFENSE_SCALE : size;
             const active = selected === token.id && tool === "move";
             const circle = box * ((DEFENSE_CIRCLE_R * 2) / DEFENSE_VIEW);
@@ -506,12 +527,13 @@ export function Board() {
                   {defense ? (
                     <div className="absolute inset-0">
                       <TokenMark
-                        token={token}
+                        token={shown}
                         size={box}
-                        onPointerDown={(event) => beginMove(event, token)}
+                        onPointerDown={(event) => beginMove(event, token, point)}
                         onPointerMove={(event) => dragMove(event, token.id)}
                         onPointerUp={() => {
                           dragRef.current = null;
+                          setDragId(null);
                         }}
                       />
                     </div>
@@ -529,10 +551,11 @@ export function Board() {
                         ? { width: circle, height: circle, touchAction: "none", pointerEvents: "auto" }
                         : { width: size, height: size, touchAction: "none" }
                     }
-                    onPointerDown={(event) => beginMove(event, token)}
+                    onPointerDown={(event) => beginMove(event, token, point)}
                     onPointerMove={(event) => dragMove(event, token.id)}
                     onPointerUp={() => {
                       dragRef.current = null;
+                      setDragId(null);
                     }}
                   >
                     {active &&
@@ -544,7 +567,7 @@ export function Board() {
                       ) : (
                         <span className="absolute -inset-1 rounded-[32%] border-2 border-amber" />
                       ))}
-                    {defense ? null : <TokenMark token={token} size={size} holding={token.id === holderId} />}
+                    {defense ? null : <TokenMark token={shown} size={size} />}
                   </button>
                   {active && defense && !play.playing && (
                     <button
@@ -657,7 +680,7 @@ function normDegrees(deg: number): number {
 }
 
 function prepareCanvas(canvas: HTMLCanvasElement, width: number, height: number) {
-  const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
   const bw = Math.max(1, Math.round(width * dpr));
   const bh = Math.max(1, Math.round(height * dpr));
   if (canvas.width !== bw || canvas.height !== bh) {
@@ -667,5 +690,7 @@ function prepareCanvas(canvas: HTMLCanvasElement, width: number, height: number)
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("canvas");
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   return ctx;
 }
