@@ -498,13 +498,22 @@ export function Board() {
                   style={{
                     width: box,
                     height: box,
+                    pointerEvents: defense ? "none" : undefined,
                     transform: defense ? `rotate(${token.rotation ?? 0}deg)` : undefined,
                     transformOrigin: "center",
                   }}
                 >
                   {defense ? (
-                    <div className="pointer-events-none absolute inset-0">
-                      <TokenMark token={token} size={box} />
+                    <div className="absolute inset-0">
+                      <TokenMark
+                        token={token}
+                        size={box}
+                        onPointerDown={(event) => beginMove(event, token)}
+                        onPointerMove={(event) => dragMove(event, token.id)}
+                        onPointerUp={() => {
+                          dragRef.current = null;
+                        }}
+                      />
                     </div>
                   ) : null}
                   <button
@@ -512,12 +521,12 @@ export function Board() {
                     aria-label={token.kind === "ball" ? "Balón" : token.kind === "obstacle" ? "Obstáculo" : token.label}
                     className={
                       defense
-                        ? "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                        ? "absolute left-1/2 top-1/2 z-[1] -translate-x-1/2 -translate-y-1/2 rounded-full"
                         : "relative grid place-items-center rounded-full"
                     }
                     style={
                       defense
-                        ? { width: circle * 1.15, height: circle * 1.15, touchAction: "none" }
+                        ? { width: circle, height: circle, touchAction: "none", pointerEvents: "auto" }
                         : { width: size, height: size, touchAction: "none" }
                     }
                     onPointerDown={(event) => beginMove(event, token)}
@@ -543,12 +552,13 @@ export function Board() {
                       aria-label={`Girar ${token.label}`}
                       className="absolute z-10 grid place-items-center rounded-full border-2 border-amber bg-cream shadow"
                       style={{
-                        left: `${DEFENSE_TIP_X * 100}%`,
-                        top: `${DEFENSE_TIP_Y * 100}%`,
-                        width: 22,
-                        height: 22,
+                        left: `calc(${DEFENSE_TIP_X * 100}% + ${Math.cos(DEFENSE_LOCAL_ANGLE) * 10}px)`,
+                        top: `calc(${DEFENSE_TIP_Y * 100}% + ${Math.sin(DEFENSE_LOCAL_ANGLE) * 10}px)`,
+                        width: 28,
+                        height: 28,
                         transform: "translate(-50%, -50%)",
                         touchAction: "none",
+                        pointerEvents: "auto",
                       }}
                       onPointerDown={(event) => beginRotate(event, token)}
                       onPointerMove={(event) => dragRotate(event, token)}

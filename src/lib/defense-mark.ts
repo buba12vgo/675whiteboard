@@ -1,37 +1,67 @@
 import type { Token } from "@/lib/types";
 
 /**
- * Crescent on the upper half of the disc. 0° faces the basket on a half court.
- * The arc is concentric with the number, flush with the ring, thick at the top
- * and sharp at two tips just under the horizontal midline.
+ * Horns on the upper half of the disc. 0° faces the basket on a half court.
+ * A semicircle sits on the ring: thick beside the number, pinched to a point
+ * on the left and right. The polygon is only that band, so nothing fills behind the number.
  */
-const SPAN_DEG = 190;
-const HALF_SPAN = (SPAN_DEG / 2) * (Math.PI / 180);
-const THICKNESS = 11;
+const SPAN = Math.PI;
+const STEPS = 28;
+const TOP_THICK = 5.2;
+const TIP_REACH = 7.4;
 
 export const DEFENSE_CIRCLE_R = 17;
-export const DEFENSE_RING = 4.2;
-/** Inner edge sits just under the ring so the arc reads as stuck to the border. */
-const INNER_R = DEFENSE_CIRCLE_R + DEFENSE_RING / 2 - 0.5;
+export const DEFENSE_RING = 2.8;
+/** Inner edge tucks under the ring so the crescent reads as stuck to the border. */
+const INNER_R = DEFENSE_CIRCLE_R + DEFENSE_RING / 2 - 0.6;
 
-function fromUp(radius: number, angle: number) {
+type XY = { x: number; y: number };
+
+function at(angle: number, radius: number): XY {
   return { x: radius * Math.sin(angle), y: -radius * Math.cos(angle) };
 }
 
-const rightTip = fromUp(INNER_R, HALF_SPAN);
-const leftTip = fromUp(INNER_R, -HALF_SPAN);
-const topY = -INNER_R - THICKNESS;
-const outerCenterY = (rightTip.x ** 2 + rightTip.y ** 2 - topY ** 2) / (2 * (rightTip.y - topY));
-const outerR = Math.hypot(rightTip.x, rightTip.y - outerCenterY);
+/** Stays on the ring until the sides, then slides out to the point. */
+function sideLift(angle: number): number {
+  return Math.pow(Math.abs(Math.sin(angle)), 8);
+}
+
+function radii(angle: number): { inner: number; outer: number } {
+  const lift = TIP_REACH * sideLift(angle);
+  return {
+    inner: INNER_R + lift,
+    outer: INNER_R + TOP_THICK * Math.pow(Math.cos(angle), 1.35) + lift,
+  };
+}
+
+function samples(): { angle: number; inner: XY; outer: XY }[] {
+  const out: { angle: number; inner: XY; outer: XY }[] = [];
+  for (let i = 0; i <= STEPS; i += 1) {
+    const angle = -SPAN / 2 + (i / STEPS) * SPAN;
+    const ring = radii(angle);
+    out.push({ angle, inner: at(angle, ring.inner), outer: at(angle, ring.outer) });
+  }
+  return out;
+}
+
+const crescent = samples();
 
 function num(value: number) {
   return value.toFixed(2);
 }
 
-/** One filled crescent. Inner arc along the disc, outer arc back over the top. */
-export const DEFENSE_CRESCENT = `M ${num(leftTip.x)} ${num(leftTip.y)} A ${num(INNER_R)} ${num(INNER_R)} 0 1 0 ${num(rightTip.x)} ${num(rightTip.y)} A ${num(outerR)} ${num(outerR)} 0 1 0 ${num(leftTip.x)} ${num(leftTip.y)} Z`;
+const crescentPoints = [...crescent.map((sample) => sample.inner), ...crescent.map((sample) => sample.outer).reverse()];
 
-const reach = Math.max(rightTip.x, -topY, DEFENSE_CIRCLE_R + DEFENSE_RING / 2, rightTip.y) + 5;
+/** Filled band only. No arc flags, so mobile browsers cannot close a blob behind the disc. */
+export const DEFENSE_CRESCENT = `${crescentPoints
+  .map((point, index) => `${index === 0 ? "M" : "L"} ${num(point.x)} ${num(point.y)}`)
+  .join(" ")} Z`;
+
+const leftTip = crescent[0].inner;
+const rightTip = crescent[crescent.length - 1].inner;
+const top = crescent[Math.round(STEPS / 2)];
+
+const reach = Math.max(...crescentPoints.map((point) => Math.max(Math.abs(point.x), Math.abs(point.y)))) + 4;
 const half = Math.ceil(reach);
 
 /** Square viewBox centered on the number. Y grows downward. */
@@ -41,17 +71,20 @@ export const DEFENSE_TIP = { x: rightTip.x, y: rightTip.y };
 export const DEFENSE_TIP_X = (DEFENSE_TIP.x + half) / DEFENSE_VIEW;
 export const DEFENSE_TIP_Y = (DEFENSE_TIP.y + half) / DEFENSE_VIEW;
 export const DEFENSE_LOCAL_ANGLE = Math.atan2(DEFENSE_TIP.y, DEFENSE_TIP.x);
-/** The number stays close to an attacker disc. The arc adds a little above it. */
-export const DEFENSE_SCALE = (0.9 * DEFENSE_VIEW) / (DEFENSE_CIRCLE_R * 2);
+/** The number stays close to an attacker disc. The horns add a little around it. */
+export const DEFENSE_SCALE = (0.92 * DEFENSE_VIEW) / (DEFENSE_CIRCLE_R * 2);
 
 export function defenseCrescentSpec() {
   return {
-    spanDeg: SPAN_DEG,
+    spanDeg: (SPAN * 180) / Math.PI,
     innerR: INNER_R,
     leftTip,
     rightTip,
-    topY,
-    lowestY: rightTip.y,
+    topInner: top.inner,
+    topOuter: top.outer,
+    points: crescentPoints,
+    lowestY: Math.max(...crescentPoints.map((point) => point.y)),
+    highestY: Math.min(...crescentPoints.map((point) => point.y)),
   };
 }
 

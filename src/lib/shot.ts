@@ -4,8 +4,8 @@ import type { CourtView, Point, Stroke, Token } from "@/lib/types";
 /** Nominal token diameter on the court, in meters. */
 export const TOKEN_DIAMETER = 0.74;
 
-/** Shot symbol length, in token diameters. */
-export const SHOT_DIAMETERS = 1.25;
+/** Shot symbol length, in token diameters. Short enough to read as a mark, not a path. */
+export const SHOT_DIAMETERS = 0.7;
 
 /** A stroke started inside this radius of a player becomes their shot. */
 export const SHOT_SNAP = 1.65;
@@ -25,11 +25,12 @@ export function shotLengthMeters(scale: number): number {
 /** Screen size of the short double arrow, matched to the token on screen. */
 export function shotPaint(scale: number) {
   const diameter = tokenRadiusMeters(scale) * 2 * scale;
+  const line = Math.max(1.05, diameter * 0.026);
   return {
     length: diameter * SHOT_DIAMETERS,
-    gap: Math.max(4.5, diameter * 0.16),
-    line: Math.max(1.8, diameter * 0.07),
-    head: Math.max(11, diameter * 0.42),
+    gap: Math.max(line * 2.35, diameter * 0.05),
+    line,
+    head: Math.max(5, diameter * 0.2),
   };
 }
 
@@ -75,7 +76,7 @@ export function shotOwner(tokens: Token[], stroke: Stroke): Token | null {
 /**
  * Two court points: the rim of the shooter, then the open arrow tip.
  * A short gesture aims at the nearest basket. A drag aims along the finger.
- * Length stays about 1.25 token diameters.
+ * Length stays about 0.7 token diameters.
  */
 export function shotPoints(
   player: Token,

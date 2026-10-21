@@ -1,7 +1,17 @@
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { DEFENSE_CIRCLE_R, DEFENSE_CRESCENT, DEFENSE_RING, DEFENSE_VIEW, defenseNumber } from "@/lib/defense-mark";
 import type { Token } from "@/lib/types";
 
-export function TokenMark({ token, size, holding = false }: { token: Token; size: number; holding?: boolean }) {
+type MarkProps = {
+  token: Token;
+  size: number;
+  holding?: boolean;
+  onPointerDown?: (event: ReactPointerEvent<SVGElement>) => void;
+  onPointerMove?: (event: ReactPointerEvent<SVGElement>) => void;
+  onPointerUp?: () => void;
+};
+
+export function TokenMark({ token, size, holding = false, onPointerDown, onPointerMove, onPointerUp }: MarkProps) {
   if (token.kind === "ball") {
     return (
       <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
@@ -33,9 +43,33 @@ export function TokenMark({ token, size, holding = false }: { token: Token; size
   if (token.kind === "defense") {
     const half = DEFENSE_VIEW / 2;
     return (
-      <svg width={size} height={size} viewBox={`${-half} ${-half} ${DEFENSE_VIEW} ${DEFENSE_VIEW}`} aria-hidden="true">
-        <path d={DEFENSE_CRESCENT} fill={token.color} />
-        <circle cx="0" cy="0" r={DEFENSE_CIRCLE_R} fill="#f6f1e6" stroke={token.color} strokeWidth={DEFENSE_RING} />
+      <svg
+        width={size}
+        height={size}
+        viewBox={`${-half} ${-half} ${DEFENSE_VIEW} ${DEFENSE_VIEW}`}
+        aria-hidden="true"
+        style={{ pointerEvents: "none" }}
+      >
+        <path
+          d={DEFENSE_CRESCENT}
+          fill={token.color}
+          style={{ pointerEvents: "auto" }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+        />
+        <circle
+          cx="0"
+          cy="0"
+          r={DEFENSE_CIRCLE_R}
+          fill="#f6f1e6"
+          stroke={token.color}
+          strokeWidth={DEFENSE_RING}
+          style={{ pointerEvents: "auto" }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+        />
         <text
           x="0"
           y="0.5"

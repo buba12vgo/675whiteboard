@@ -21,12 +21,12 @@ const ball: Token = {
 };
 
 describe("shot symbol", () => {
-  it("stays between one and one and a half token diameters", () => {
+  it("stays between 0.6 and 0.8 token diameters", () => {
     for (const scale of [30, 48, 70, 110]) {
       const ratio = shotLengthMeters(scale) / (tokenRadiusMeters(scale) * 2);
-      expect(ratio).toBeCloseTo(1.25);
-      expect(ratio).toBeGreaterThanOrEqual(1);
-      expect(ratio).toBeLessThanOrEqual(1.5);
+      expect(ratio).toBeCloseTo(0.7);
+      expect(ratio).toBeGreaterThanOrEqual(0.6);
+      expect(ratio).toBeLessThanOrEqual(0.8);
     }
   });
 
@@ -39,7 +39,7 @@ describe("shot symbol", () => {
     expect(points[0].x).toBeCloseTo(shooter.x - tokenRadiusMeters(60));
     expect(points[1].x).toBeLessThan(points[0].x);
     const length = points[0].x - points[1].x;
-    expect(length).toBeCloseTo(TOKEN_DIAMETER * 1.25);
+    expect(length).toBeCloseTo(TOKEN_DIAMETER * 0.7);
   });
 
   it("follows a drag and ignores the ball", () => {
