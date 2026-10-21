@@ -24,6 +24,58 @@ import { isLightColor } from "@/lib/utils";
 
 const LINE = "#173454";
 
+/** Floor mark inside the 1.80 m center circle. Subtle enough to draw over. */
+export const CENTER_LOGO_OPACITY = 0.3;
+
+/**
+ * Side of the square logo as a fraction of the center-circle diameter.
+ * Must stay under 1/√2 so the corners remain inside the ring.
+ */
+const CENTER_LOGO_DIAMETER_RATIO = 0.66;
+
+export function centerLogoMeters(): number {
+  return CENTER_RADIUS * 2 * CENTER_LOGO_DIAMETER_RATIO;
+}
+
+let centerLogo: HTMLImageElement | null = null;
+let centerLogoStatus: "idle" | "loading" | "ready" | "missing" = "idle";
+let centerLogoWait: Promise<void> | null = null;
+
+/** Resolves when the floor logo is decoded, or immediately when it cannot load. */
+export function whenCenterLogo(): Promise<void> {
+  if (typeof Image === "undefined") return Promise.resolve();
+  if (centerLogoStatus === "ready" || centerLogoStatus === "missing") return Promise.resolve();
+  if (!centerLogoWait) {
+    centerLogoStatus = "loading";
+    const image = new Image();
+    centerLogo = image;
+    centerLogoWait = new Promise((resolve) => {
+      const finish = (status: "ready" | "missing") => {
+        centerLogoStatus = status;
+        resolve();
+      };
+      image.onload = () => finish("ready");
+      image.onerror = () => finish("missing");
+    });
+    image.src = `${import.meta.env.BASE_URL}icons/icon-512.png`;
+  }
+  return centerLogoWait;
+}
+
+function drawCenterLogo(ctx: CanvasRenderingContext2D, transform: CourtTransform) {
+  if (transform.view !== "full") return;
+  if (!centerLogo || centerLogoStatus !== "ready" || centerLogo.naturalWidth === 0) return;
+  const at = transform.toScreen(COURT_LENGTH / 2, COURT_WIDTH / 2);
+  const side = centerLogoMeters() * transform.scale;
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(at.x, at.y, CENTER_RADIUS * transform.scale, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.globalAlpha = CENTER_LOGO_OPACITY;
+  ctx.drawImage(centerLogo, at.x - side / 2, at.y - side / 2, side, side);
+  ctx.restore();
+}
+
 export const COURT_FLOORS = [
   { id: "light", label: "Claro" },
   { id: "dark", label: "Oscuro" },
@@ -303,6 +355,9 @@ export function drawCourt(ctx: CanvasRenderingContext2D, transform: CourtTransfo
     ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
   }
 
+  void whenCenterLogo();
+  drawCenterLogo(ctx, transform);
+
   for (const side of ["left", "right"] as const) {
     if (!sideOnCourt(transform, side)) continue;
     if (paint.court === "mini") drawMini(ctx, transform, side, ink);
@@ -321,7 +376,7 @@ export function drawCourt(ctx: CanvasRenderingContext2D, transform: CourtTransfo
     ], { color: ink.line });
   }
 
-  if (paint.court === "mini") {
+  if (paint.court === "mini" || transform.view === "full") {
     const circle = arcPoints(COURT_LENGTH / 2, COURT_WIDTH / 2, CENTER_RADIUS, 0, Math.PI * 2, 72);
     strokeMeters(ctx, transform, circle, { color: ink.line });
   }

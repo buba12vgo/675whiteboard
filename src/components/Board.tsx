@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
-import { drawCourt } from "@/lib/court";
+import { drawCourt, whenCenterLogo } from "@/lib/court";
 import {
   BALL_BOX,
   BALL_DRAW_R,
@@ -127,6 +127,17 @@ export function Board() {
     return fitCourt(state.doc.view, size.w, size.h, pad);
   }, [size.w, size.h, state.doc.view]);
 
+  const [centerLogoTick, setCenterLogoTick] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    void whenCenterLogo().then(() => {
+      if (alive) setCenterLogoTick(1);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   useLayoutEffect(() => {
     drawInkRef.current = () => {
       const ink = inkRef.current;
@@ -150,7 +161,7 @@ export function Board() {
     const ctx = prepareCanvas(court, size.w, size.h);
     drawCourt(ctx, transform, { court: state.doc.court, floor, flatColor });
     drawInkRef.current();
-  }, [transform, size.w, size.h, state.doc.court, floor, flatColor]);
+  }, [transform, size.w, size.h, state.doc.court, floor, flatColor, centerLogoTick]);
 
   useEffect(() => {
     drawInkRef.current();
@@ -158,6 +169,7 @@ export function Board() {
 
   useEffect(() => {
     registerExporter(async () => {
+      await whenCenterLogo();
       const doc = stateRef.current.doc;
       const current = doc.frames[doc.frameIndex];
       const hint = transformRef.current?.orientation ?? (doc.view === "half" ? "half" : "length-x");
@@ -450,7 +462,7 @@ export function Board() {
 
   return (
     <div ref={rootRef} className="absolute inset-0 touch-none" onContextMenu={(event) => event.preventDefault()}>
-      <canvas ref={courtRef} className="absolute inset-0 h-full w-full" />
+      <canvas ref={courtRef} className="pointer-events-none absolute inset-0 h-full w-full" />
       <canvas
         ref={inkRef}
         className="absolute inset-0 h-full w-full touch-none"
