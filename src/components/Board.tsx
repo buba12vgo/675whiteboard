@@ -443,8 +443,8 @@ export function Board() {
                       style={{
                         left: `${DEFENSE_TIP_X * 100}%`,
                         top: `${DEFENSE_TIP_Y * 100}%`,
-                        width: 32,
-                        height: 32,
+                        width: 26,
+                        height: 26,
                         transform: "translate(-50%, -50%)",
                         touchAction: "none",
                       }}

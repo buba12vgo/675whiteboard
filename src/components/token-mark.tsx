@@ -1,4 +1,4 @@
-import { DEFENSE_CIRCLE_R, DEFENSE_CRESCENT, DEFENSE_VIEW, defenseNumber } from "@/lib/defense-mark";
+import { DEFENSE_CIRCLE_R, DEFENSE_CRESCENT, DEFENSE_RING, DEFENSE_VIEW, defenseNumber } from "@/lib/defense-mark";
 import type { Token } from "@/lib/types";
 
 export function TokenMark({ token, size, holding = false }: { token: Token; size: number; holding?: boolean }) {
@@ -35,13 +35,13 @@ export function TokenMark({ token, size, holding = false }: { token: Token; size
     return (
       <svg width={size} height={size} viewBox={`${-half} ${-half} ${DEFENSE_VIEW} ${DEFENSE_VIEW}`} aria-hidden="true">
         <path d={DEFENSE_CRESCENT} fill={token.color} />
-        <circle cx="0" cy="0" r={DEFENSE_CIRCLE_R} fill="#f6f1e6" stroke={token.color} strokeWidth="3.4" />
+        <circle cx="0" cy="0" r={DEFENSE_CIRCLE_R} fill="#f6f1e6" stroke={token.color} strokeWidth={DEFENSE_RING} />
         <text
           x="0"
           y="0.5"
           textAnchor="middle"
           dominantBaseline="central"
-          fontSize="18"
+          fontSize="20"
           fontWeight="700"
           fill={token.color}
           fontFamily="Outfit, sans-serif"
