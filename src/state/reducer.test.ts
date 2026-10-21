@@ -74,6 +74,17 @@ describe("reducer", () => {
     expect(currentFrame(state).tokens[0].x).toBeCloseTo(start);
   });
 
+  it("rotates a defender in one undo step", () => {
+    let state = createState();
+    state = reducer(state, { type: "rotate-token", id: "def-1", rotation: 90, snapshot: true });
+    state = reducer(state, { type: "rotate-token", id: "def-1", rotation: 140, snapshot: false });
+    expect(currentFrame(state).tokens.find((token) => token.id === "def-1")?.rotation).toBe(140);
+    state = reducer(state, { type: "rotate-token", id: "atk-1", rotation: 40, snapshot: true });
+    expect(currentFrame(state).tokens.find((token) => token.id === "atk-1")?.rotation).toBeUndefined();
+    state = reducer(state, { type: "undo" });
+    expect(currentFrame(state).tokens.find((token) => token.id === "def-1")?.rotation ?? 0).toBe(0);
+  });
+
   it("does not delete the last frame", () => {
     const state = reducer(createState(), { type: "delete-frame" });
     expect(state.doc.frames).toHaveLength(1);

@@ -1,3 +1,4 @@
+import { DEFENSE_CIRCLE_R, DEFENSE_CRESCENT, DEFENSE_VIEW, defenseNumber } from "@/lib/defense-mark";
 import type { Token } from "@/lib/types";
 
 export function TokenMark({ token, size, holding = false }: { token: Token; size: number; holding?: boolean }) {
@@ -30,13 +31,22 @@ export function TokenMark({ token, size, holding = false }: { token: Token; size
     );
   }
   if (token.kind === "defense") {
-    const number = token.label.replace(/^X/i, "");
+    const half = DEFENSE_VIEW / 2;
     return (
-      <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
-        <path d="M8 10 56 54M56 10 8 54" stroke={token.color} strokeWidth="8" strokeLinecap="round" />
-        <circle cx="32" cy="32" r="12" fill="#f6f1e6" stroke={token.color} strokeWidth="2.5" />
-        <text x="32" y="37" textAnchor="middle" fontSize="16" fontWeight="700" fill={token.color}>
-          {number}
+      <svg width={size} height={size} viewBox={`${-half} ${-half} ${DEFENSE_VIEW} ${DEFENSE_VIEW}`} aria-hidden="true">
+        <path d={DEFENSE_CRESCENT} fill={token.color} />
+        <circle cx="0" cy="0" r={DEFENSE_CIRCLE_R} fill="#f6f1e6" stroke={token.color} strokeWidth="3.4" />
+        <text
+          x="0"
+          y="0.5"
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize="18"
+          fontWeight="700"
+          fill={token.color}
+          fontFamily="Outfit, sans-serif"
+        >
+          {defenseNumber(token.label)}
         </text>
       </svg>
     );

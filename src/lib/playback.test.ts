@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { easeInOut } from "./utils.ts";
-import { interpolateTokens } from "./playback.ts";
+import { interpolateTokens, lerpAngle } from "./playback.ts";
 import type { Token } from "./types.ts";
 
 const a: Token = { id: "atk-1", kind: "attack", label: "1", color: "#000", x: 0, y: 0 };
@@ -18,6 +18,11 @@ describe("playback", () => {
     expect(mid[0].x).toBeCloseTo(5);
     expect(mid[0].y).toBeCloseTo(2);
     expect(mid[0].opacity).toBe(1);
+  });
+
+  it("turns a defender the short way", () => {
+    expect(lerpAngle(350, 10, 0.5)).toBeCloseTo(0);
+    expect(lerpAngle(10, 350, 0.5)).toBeCloseTo(0);
   });
 
   it("fades tokens that leave the next step", () => {

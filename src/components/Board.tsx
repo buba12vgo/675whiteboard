@@ -1,6 +1,14 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { drawCourt } from "@/lib/court";
+import {
+  DEFENSE_CIRCLE_R,
+  DEFENSE_LOCAL_ANGLE,
+  DEFENSE_SCALE,
+  DEFENSE_TIP_X,
+  DEFENSE_TIP_Y,
+  DEFENSE_VIEW,
+} from "@/lib/defense-mark";
 import { fitCourt, type CourtTransform } from "@/lib/geometry";
 import { canvasToPng, renderBoardCanvas } from "@/lib/image";
 import { ballHolderId } from "@/lib/movement";
@@ -29,6 +37,7 @@ export function Board() {
     commitStroke,
     eraseStrokes,
     moveToken,
+    rotateToken,
     removeToken,
     registerExporter,
     playStore,
@@ -64,6 +73,14 @@ export function Board() {
     startY: number;
     recorded: boolean;
   } | null>(null);
+  const rotateRef = useRef<{
+    id: string;
+    pointer: number;
+    cx: number;
+    cy: number;
+    recorded: boolean;
+  } | null>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const drawInkRef = useRef<() => void>(() => {});
 
   const shownIndex = play.playing
@@ -258,6 +275,81 @@ export function Board() {
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   }
 
+  function beginMove(event: React.PointerEvent, token: { id: string; x: number; y: number }) {
+    if (tool !== "move" || play.playing) return;
+    const current = transformRef.current;
+    if (!current) return;
+    event.stopPropagation();
+    event.preventDefault();
+    setSelected(token.id);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const origin = current.toScreen(token.x, token.y);
+    dragRef.current = {
+      id: token.id,
+      pointer: event.pointerId,
+      originX: origin.x,
+      originY: origin.y,
+      startX: event.clientX,
+      startY: event.clientY,
+      recorded: false,
+    };
+  }
+
+  function dragMove(event: React.PointerEvent, tokenId: string) {
+    const drag = dragRef.current;
+    const current = transformRef.current;
+    if (!drag || drag.pointer !== event.pointerId || drag.id !== tokenId || !current) return;
+    const dx = event.clientX - drag.startX;
+    const dy = event.clientY - drag.startY;
+    const court = current.toCourt(drag.originX + dx, drag.originY + dy);
+    const x = clamp(court.x, current.visible.x0 + 0.3, current.visible.x1 - 0.3);
+    const y = clamp(court.y, current.visible.y0 + 0.3, current.visible.y1 - 0.3);
+    if (!drag.recorded) {
+      if (Math.hypot(dx, dy) < 3) return;
+      drag.recorded = true;
+      moveToken(tokenId, x, y, true);
+    } else {
+      moveToken(tokenId, x, y, false);
+    }
+  }
+
+  function beginRotate(event: React.PointerEvent, token: { id: string; x: number; y: number }) {
+    if (tool !== "move" || play.playing) return;
+    event.stopPropagation();
+    event.preventDefault();
+    const current = transformRef.current;
+    const overlay = overlayRef.current;
+    if (!current || !overlay) return;
+    const rect = overlay.getBoundingClientRect();
+    const screen = current.toScreen(token.x, token.y);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    rotateRef.current = {
+      id: token.id,
+      pointer: event.pointerId,
+      cx: rect.left + screen.x,
+      cy: rect.top + screen.y,
+      recorded: false,
+    };
+  }
+
+  function dragRotate(event: React.PointerEvent, token: { id: string; rotation?: number }) {
+    const rot = rotateRef.current;
+    if (!rot || rot.pointer !== event.pointerId || rot.id !== token.id) return;
+    const pointer = Math.atan2(event.clientY - rot.cy, event.clientX - rot.cx);
+    const next = normDegrees(((pointer - DEFENSE_LOCAL_ANGLE) * 180) / Math.PI);
+    const current = token.rotation ?? 0;
+    if (!rot.recorded) {
+      let delta = next - current;
+      if (delta > 180) delta -= 360;
+      if (delta < -180) delta += 360;
+      if (Math.abs(delta) < 2) return;
+      rot.recorded = true;
+      rotateToken(token.id, next, true);
+    } else {
+      rotateToken(token.id, next, false);
+    }
+  }
+
   const tokenSize = transform ? clamp(transform.scale * 0.74, 44, 64) : 48;
 
   return (
@@ -274,6 +366,7 @@ export function Board() {
       />
       {transform && (
         <div
+          ref={overlayRef}
           className="absolute inset-0"
           style={{ pointerEvents: tool === "move" && !play.playing ? "auto" : "none" }}
           onPointerDown={() => setSelected(null)}
@@ -281,7 +374,10 @@ export function Board() {
           {displayTokens.map((token) => {
             const screen = transform.toScreen(token.x, token.y);
             const size = token.kind === "ball" ? tokenSize * 0.72 : token.kind === "obstacle" ? tokenSize * 0.86 : tokenSize;
+            const defense = token.kind === "defense";
+            const box = defense ? tokenSize * DEFENSE_SCALE : size;
             const active = selected === token.id && tool === "move";
+            const circle = box * ((DEFENSE_CIRCLE_R * 2) / DEFENSE_VIEW);
             return (
               <div
                 key={token.id}
@@ -295,59 +391,90 @@ export function Board() {
                   touchAction: "none",
                 }}
               >
-                <button
-                  type="button"
-                  aria-label={token.kind === "ball" ? "Balón" : token.kind === "obstacle" ? "Obstáculo" : token.label}
-                  className="relative grid place-items-center rounded-full"
-                  style={{ width: size, height: size, touchAction: "none" }}
-                  onPointerDown={(event) => {
-                    if (tool !== "move" || play.playing) return;
-                    event.stopPropagation();
-                    event.preventDefault();
-                    setSelected(token.id);
-                    event.currentTarget.setPointerCapture(event.pointerId);
-                    const origin = transform.toScreen(token.x, token.y);
-                    dragRef.current = {
-                      id: token.id,
-                      pointer: event.pointerId,
-                      originX: origin.x,
-                      originY: origin.y,
-                      startX: event.clientX,
-                      startY: event.clientY,
-                      recorded: false,
-                    };
-                  }}
-                  onPointerMove={(event) => {
-                    const drag = dragRef.current;
-                    const current = transformRef.current;
-                    if (!drag || drag.pointer !== event.pointerId || drag.id !== token.id || !current) return;
-                    const dx = event.clientX - drag.startX;
-                    const dy = event.clientY - drag.startY;
-                    const court = current.toCourt(drag.originX + dx, drag.originY + dy);
-                    const x = clamp(court.x, current.visible.x0 + 0.3, current.visible.x1 - 0.3);
-                    const y = clamp(court.y, current.visible.y0 + 0.3, current.visible.y1 - 0.3);
-                    if (!drag.recorded) {
-                      if (Math.hypot(dx, dy) < 3) return;
-                      drag.recorded = true;
-                      moveToken(token.id, x, y, true);
-                    } else {
-                      moveToken(token.id, x, y, false);
-                    }
-                  }}
-                  onPointerUp={() => {
-                    dragRef.current = null;
+                <div
+                  className="relative"
+                  style={{
+                    width: box,
+                    height: box,
+                    transform: defense ? `rotate(${token.rotation ?? 0}deg)` : undefined,
+                    transformOrigin: "center",
                   }}
                 >
-                  {active && (
-                    <span className="absolute -inset-1 rounded-[32%] border-2 border-amber" />
+                  {defense ? (
+                    <div className="pointer-events-none absolute inset-0">
+                      <TokenMark token={token} size={box} />
+                    </div>
+                  ) : null}
+                  <button
+                    type="button"
+                    aria-label={token.kind === "ball" ? "Balón" : token.kind === "obstacle" ? "Obstáculo" : token.label}
+                    className={
+                      defense
+                        ? "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                        : "relative grid place-items-center rounded-full"
+                    }
+                    style={
+                      defense
+                        ? { width: circle * 1.15, height: circle * 1.15, touchAction: "none" }
+                        : { width: size, height: size, touchAction: "none" }
+                    }
+                    onPointerDown={(event) => beginMove(event, token)}
+                    onPointerMove={(event) => dragMove(event, token.id)}
+                    onPointerUp={() => {
+                      dragRef.current = null;
+                    }}
+                  >
+                    {active &&
+                      (defense ? (
+                        <span
+                          className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-amber"
+                          style={{ width: circle * 1.12, height: circle * 1.12 }}
+                        />
+                      ) : (
+                        <span className="absolute -inset-1 rounded-[32%] border-2 border-amber" />
+                      ))}
+                    {defense ? null : <TokenMark token={token} size={size} holding={token.id === holderId} />}
+                  </button>
+                  {active && defense && !play.playing && (
+                    <button
+                      type="button"
+                      aria-label={`Girar ${token.label}`}
+                      className="absolute z-10 grid place-items-center rounded-full border-2 border-amber bg-cream shadow"
+                      style={{
+                        left: `${DEFENSE_TIP_X * 100}%`,
+                        top: `${DEFENSE_TIP_Y * 100}%`,
+                        width: 32,
+                        height: 32,
+                        transform: "translate(-50%, -50%)",
+                        touchAction: "none",
+                      }}
+                      onPointerDown={(event) => beginRotate(event, token)}
+                      onPointerMove={(event) => dragRotate(event, token)}
+                      onPointerUp={() => {
+                        rotateRef.current = null;
+                      }}
+                      onPointerCancel={() => {
+                        rotateRef.current = null;
+                      }}
+                    >
+                      <span className="h-2.5 w-2.5 rounded-full bg-amber" />
+                    </button>
                   )}
-                  <TokenMark token={token} size={size} holding={token.id === holderId} />
-                </button>
+                </div>
                 {active && (
                   <button
                     type="button"
                     aria-label={`Quitar ${token.label || "balón"}`}
-                    className="absolute -right-1 -top-1 grid h-7 w-7 place-items-center rounded-full bg-ink text-cream shadow"
+                    className="absolute z-20 grid h-7 w-7 place-items-center rounded-full bg-ink text-cream shadow"
+                    style={
+                      defense
+                        ? {
+                            left: `calc(50% + ${circle * 0.42}px)`,
+                            top: `calc(50% - ${circle * 0.42}px)`,
+                            transform: "translate(-50%, -50%)",
+                          }
+                        : { right: -4, top: -4 }
+                    }
                     onPointerDown={(event) => {
                       event.stopPropagation();
                       event.preventDefault();
@@ -377,6 +504,10 @@ export function Board() {
       )}
     </div>
   );
+}
+
+function normDegrees(deg: number): number {
+  return ((deg % 360) + 360) % 360;
 }
 
 function prepareCanvas(canvas: HTMLCanvasElement, width: number, height: number) {

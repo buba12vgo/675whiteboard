@@ -32,6 +32,8 @@ export type Token = {
   color: string;
   x: number;
   y: number;
+  /** Degrees clockwise. 0 keeps the defensive crescent opening upward. */
+  rotation?: number;
 };
 
 export type Frame = {

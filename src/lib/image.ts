@@ -1,4 +1,5 @@
 import { drawCourt, type CourtPaint } from "@/lib/court";
+import { DEFENSE_SCALE, drawDefenseMark } from "@/lib/defense-mark";
 import { fitCourt, type CourtTransform } from "@/lib/geometry";
 import { ballHolderId } from "@/lib/movement";
 import { renderStroke } from "@/lib/strokes";
@@ -56,21 +57,7 @@ export function drawTokenGlyph(
   }
 
   if (token.kind === "defense") {
-    ctx.strokeStyle = token.color;
-    ctx.beginPath();
-    ctx.moveTo(-radius * 0.72, -radius * 0.72);
-    ctx.lineTo(radius * 0.72, radius * 0.72);
-    ctx.moveTo(radius * 0.72, -radius * 0.72);
-    ctx.lineTo(-radius * 0.72, radius * 0.72);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(0, 0, radius * 0.34, 0, Math.PI * 2);
-    ctx.fillStyle = "#f6f1e6";
-    ctx.fill();
-    ctx.lineWidth = Math.max(1.5, size * 0.04);
-    ctx.stroke();
-    ctx.fillStyle = token.color;
-    ctx.fillText(token.label.replace(/^X/i, ""), 0, size * 0.02);
+    drawDefenseMark(ctx, token, size);
     ctx.restore();
     return;
   }
@@ -135,7 +122,8 @@ export function renderBoardCanvas(
   const ordered = [...tokens].sort((a, b) => (a.kind === "ball" ? 1 : 0) - (b.kind === "ball" ? 1 : 0));
   for (const token of ordered) {
     const screen = transform.toScreen(token.x, token.y);
-    const size = token.kind === "ball" ? tokenSize * 0.82 : tokenSize;
+    const size =
+      token.kind === "ball" ? tokenSize * 0.82 : token.kind === "defense" ? tokenSize * DEFENSE_SCALE : tokenSize;
     drawTokenGlyph(ctx, token, screen.x, screen.y, size, token.opacity ?? 1, token.id === holder);
   }
   ctx.restore();

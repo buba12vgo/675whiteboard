@@ -26,6 +26,7 @@ export type Action =
   | { type: "commit-stroke"; stroke: Stroke }
   | { type: "erase-strokes"; ids: string[] }
   | { type: "move-token"; id: string; x: number; y: number; snapshot: boolean }
+  | { type: "rotate-token"; id: string; rotation: number; snapshot: boolean }
   | { type: "remove-token"; id: string }
   | { type: "add-token"; token: Token }
   | { type: "reset-tokens" }
@@ -132,6 +133,15 @@ export function reducer(state: State, action: Action): State {
       const tokens = frame.tokens.map((item) =>
         item.id === action.id ? { ...item, x: action.x, y: action.y } : item,
       );
+      return withFrame(state, frame.id, { ...frame, tokens }, action.snapshot);
+    }
+    case "rotate-token": {
+      const frame = currentFrame(state);
+      const token = frame.tokens.find((item) => item.id === action.id);
+      if (!token || token.kind !== "defense") return state;
+      const rotation = ((action.rotation % 360) + 360) % 360;
+      if ((token.rotation ?? 0) === rotation) return state;
+      const tokens = frame.tokens.map((item) => (item.id === action.id ? { ...item, rotation } : item));
       return withFrame(state, frame.id, { ...frame, tokens }, action.snapshot);
     }
     case "remove-token": {

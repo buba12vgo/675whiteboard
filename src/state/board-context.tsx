@@ -105,6 +105,7 @@ type BoardApi = {
   commitStroke: (stroke: Stroke) => void;
   eraseStrokes: (ids: string[]) => void;
   moveToken: (id: string, x: number, y: number, snapshot: boolean) => void;
+  rotateToken: (id: string, rotation: number, snapshot: boolean) => void;
   removeToken: (id: string) => void;
   toggleRosterToken: (id: string) => void;
   resetTokens: () => void;
@@ -610,6 +611,7 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
       commitStroke: (stroke) => edit({ type: "commit-stroke", stroke }),
       eraseStrokes: (ids) => edit({ type: "erase-strokes", ids }),
       moveToken: (id, x, y, snapshot) => edit({ type: "move-token", id, x, y, snapshot }),
+      rotateToken: (id, rotation, snapshot) => edit({ type: "rotate-token", id, rotation, snapshot }),
       removeToken: (id) => edit({ type: "remove-token", id }),
       toggleRosterToken: (id) => {
         const frame = state.doc.frames[state.doc.frameIndex];

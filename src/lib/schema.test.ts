@@ -44,6 +44,30 @@ describe("schema", () => {
     expect(parsePlays({ nope: true })).toBeNull();
   });
 
+  it("keeps a defender rotation on the way through a draft", () => {
+    const draft = sanitizeDraft({
+      version: 1,
+      doc: {
+        view: "half",
+        frameIndex: 0,
+        meta: null,
+        frames: [
+          {
+            id: "f1",
+            strokes: [],
+            tokens: [
+              { id: "def-2", kind: "defense", label: "X2", color: "#9a3412", x: 4, y: 5, rotation: 90 },
+              { id: "def-3", kind: "defense", label: "X3", color: "#9a3412", x: 5, y: 5, rotation: -90 },
+            ],
+          },
+        ],
+      },
+    });
+    const tokens = draft?.frames[0].tokens ?? [];
+    expect(tokens.find((token) => token.id === "def-2")?.rotation).toBe(90);
+    expect(tokens.find((token) => token.id === "def-3")?.rotation).toBe(270);
+  });
+
   it("reads a stored draft wrapper", () => {
     const draft = sanitizeDraft({
       version: 1,

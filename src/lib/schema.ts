@@ -66,6 +66,7 @@ function sanitizeToken(value: unknown): Token | null {
   const y = num(value.y);
   const kind = KINDS.has(value.kind as TokenKind) ? (value.kind as TokenKind) : null;
   if (x === null || y === null || !kind) return null;
+  const rotation = num(value.rotation);
   return {
     id: str(value.id) ?? uid(),
     kind,
@@ -73,6 +74,7 @@ function sanitizeToken(value: unknown): Token | null {
     color: str(value.color) ?? "#111827",
     x,
     y,
+    ...(rotation === null ? {} : { rotation: ((rotation % 360) + 360) % 360 }),
   };
 }
 
