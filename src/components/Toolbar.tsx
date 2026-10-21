@@ -276,7 +276,7 @@ function RosterGroup({ title, ids }: { title: string; ids: string[] }) {
             onClick={() => board.toggleRosterToken(id)}
             className="flex h-12 w-full items-center gap-3 rounded-xl px-2 text-left hover:bg-white/5"
           >
-            <span className="grid h-10 w-10 shrink-0 place-items-center">
+            <span className="grid h-12 w-12 shrink-0 place-items-center">
               <TokenMark
                 token={{
                   id: entry.id,

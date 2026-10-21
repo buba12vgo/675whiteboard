@@ -1,15 +1,14 @@
 import type { Token } from "@/lib/types";
 
 /**
- * One disc for every player. The defender adds a single crescent: the outer
- * edge is one circular arc that meets the ring at the equator and is thickest
- * at the top (18% of the radius). The inner edge sits under the disc, so the
- * ring stroke is the only outline. 0° keeps the crescent on the upper half.
+ * One disc for every player. The defender adds a single crescent, like the
+ * FEB umbrella: it sits just outside the ring, is thickest at the top, and
+ * ends in two fine horns below the midline. 0° keeps that arc on the upper half.
  */
 export const MARK_R = 36;
 export const MARK_RING = 4.2;
 /** Visible thickness at the top, as a fraction of the disc radius. */
-export const CRESCENT_RATIO = 0.18;
+export const CRESCENT_RATIO = 0.28;
 /** Ball element size relative to a player token. */
 export const BALL_BOX = 0.5;
 /** Drawn ball radius relative to that element. */
@@ -21,25 +20,35 @@ export const BALL_INK = "#24160f";
 export const MARK_FONT = 30;
 
 const EDGE = MARK_R + MARK_RING / 2;
-/** Tips sit a hair outside the stroke so the join stays closed on retina. */
-const TIP_R = EDGE + 0.4;
-const APEX = EDGE + CRESCENT_RATIO * MARK_R;
-/** Inner boundary, hidden under the cream fill. */
-const INNER_R = MARK_R - 2.4;
-const OUTER_CY = (TIP_R * TIP_R - APEX * APEX) / (2 * APEX);
-const OUTER_R = Math.hypot(TIP_R, OUTER_CY);
-
-const ATTACK_PAD = MARK_RING / 2 + 1.6;
-export const ATTACK_VIEW = (MARK_R + ATTACK_PAD) * 2;
+/** Clear gap between the ring and the inner edge of the crescent. */
+const GAP = 3.6;
+/** How far each horn sticks out past the ring, and how far it drops below center. */
+const TIP_OUT = 7.2;
+const TIP_DROP = 13;
+const CROWN = EDGE + GAP;
+const APEX = CROWN + CRESCENT_RATIO * MARK_R;
 
 type XY = { x: number; y: number };
 
-const leftTip: XY = { x: -TIP_R, y: 0 };
-const rightTip: XY = { x: TIP_R, y: 0 };
+const rightTip: XY = { x: EDGE + TIP_OUT, y: TIP_DROP };
+const leftTip: XY = { x: -rightTip.x, y: rightTip.y };
+const innerCrown: XY = { x: 0, y: -CROWN };
 const apex: XY = { x: 0, y: -APEX };
-const innerLeft: XY = { x: -INNER_R, y: 0 };
-const innerRight: XY = { x: INNER_R, y: 0 };
-const innerTop: XY = { x: 0, y: -INNER_R };
+
+function circleOnAxis(crownY: number, tip: XY): { cy: number; r: number } {
+  const cy = (tip.x * tip.x + tip.y * tip.y - crownY * crownY) / (2 * (tip.y - crownY));
+  return { cy, r: Math.hypot(tip.x, tip.y - cy) };
+}
+
+const innerCircle = circleOnAxis(innerCrown.y, rightTip);
+const outerCircle = circleOnAxis(apex.y, rightTip);
+const INNER_R = innerCircle.r;
+const INNER_CY = innerCircle.cy;
+const OUTER_R = outerCircle.r;
+const OUTER_CY = outerCircle.cy;
+
+const ATTACK_PAD = MARK_RING / 2 + 1.6;
+export const ATTACK_VIEW = (MARK_R + ATTACK_PAD) * 2;
 
 function arcCenter(start: XY, end: XY, radius: number, large: number, sweep: number): XY {
   const dx2 = (start.x - end.x) / 2;
@@ -80,15 +89,8 @@ function chooseArc(start: XY, end: XY, radius: number, target: XY): { large: num
   return best;
 }
 
-const innerQuarterL = chooseArc(innerLeft, innerTop, INNER_R, {
-  x: -INNER_R / Math.SQRT2,
-  y: -INNER_R / Math.SQRT2,
-});
-const innerQuarterR = chooseArc(innerTop, innerRight, INNER_R, {
-  x: INNER_R / Math.SQRT2,
-  y: -INNER_R / Math.SQRT2,
-});
-const outer = chooseArc(rightTip, leftTip, OUTER_R, apex);
+const innerArc = chooseArc(leftTip, rightTip, INNER_R, innerCrown);
+const outerArc = chooseArc(rightTip, leftTip, OUTER_R, apex);
 
 function n(value: number) {
   return value.toFixed(2);
@@ -98,13 +100,13 @@ function arc(to: XY, radius: number, flag: { large: number; sweep: number }) {
   return `A ${n(radius)} ${n(radius)} 0 ${flag.large} ${flag.sweep} ${n(to.x)} ${n(to.y)}`;
 }
 
-/** Crescent whose inner edge is covered by the disc. Outer edge is one circular arc. */
-export const DEFENSE_CRESCENT = `M ${n(leftTip.x)} ${n(leftTip.y)} L ${n(innerLeft.x)} ${n(innerLeft.y)} ${arc(innerTop, INNER_R, innerQuarterL)} ${arc(innerRight, INNER_R, innerQuarterR)} L ${n(rightTip.x)} ${n(rightTip.y)} ${arc(leftTip, OUTER_R, outer)} Z`;
+/** One filled crescent: inner arc just outside the ring, outer arc through the crown, meeting at the horns. */
+export const DEFENSE_CRESCENT = `M ${n(leftTip.x)} ${n(leftTip.y)} ${arc(rightTip, INNER_R, innerArc)} ${arc(leftTip, OUTER_R, outerArc)} Z`;
 
-const reach = Math.max(APEX, TIP_R) + 3;
+const reach = Math.max(APEX, rightTip.x, rightTip.y) + 4;
 const half = Math.ceil(reach);
 export const DEFENSE_VIEW = half * 2;
-export const DEFENSE_TIP = { x: EDGE, y: 0 };
+export const DEFENSE_TIP = { x: rightTip.x, y: rightTip.y };
 export const DEFENSE_TIP_X = (DEFENSE_TIP.x + half) / DEFENSE_VIEW;
 export const DEFENSE_TIP_Y = (DEFENSE_TIP.y + half) / DEFENSE_VIEW;
 export const DEFENSE_LOCAL_ANGLE = Math.atan2(DEFENSE_TIP.y, DEFENSE_TIP.x);
@@ -124,14 +126,17 @@ export function defenseCrescentSpec() {
     ring: MARK_RING,
     ratio: CRESCENT_RATIO,
     edge: EDGE,
+    gap: GAP,
     innerR: INNER_R,
+    innerCenterY: INNER_CY,
     apex,
+    innerCrown,
     leftTip,
     rightTip,
     outerCenterY: OUTER_CY,
     outerR: OUTER_R,
     path: DEFENSE_CRESCENT,
-    topThickness: APEX - EDGE,
+    topThickness: APEX - CROWN,
   };
 }
 

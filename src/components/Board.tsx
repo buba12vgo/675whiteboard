@@ -575,8 +575,8 @@ export function Board() {
                       aria-label={`Girar ${token.label}`}
                       className="absolute z-10 grid place-items-center rounded-full border-2 border-amber bg-cream shadow"
                       style={{
-                        left: `calc(${DEFENSE_TIP_X * 100}% + ${Math.cos(DEFENSE_LOCAL_ANGLE) * 10}px)`,
-                        top: `calc(${DEFENSE_TIP_Y * 100}% + ${Math.sin(DEFENSE_LOCAL_ANGLE) * 10}px)`,
+                        left: `calc(${DEFENSE_TIP_X * 100}% + ${Math.cos(DEFENSE_LOCAL_ANGLE) * 16}px)`,
+                        top: `calc(${DEFENSE_TIP_Y * 100}% + ${Math.sin(DEFENSE_LOCAL_ANGLE) * 16}px)`,
                         width: 28,
                         height: 28,
                         transform: "translate(-50%, -50%)",
