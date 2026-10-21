@@ -142,8 +142,10 @@ export function PlaysDialog() {
             </ul>
           )}
         </div>
-        <div className="grid grid-cols-3 gap-2 border-t border-line p-3">
-          <Button onClick={board.openSave}>Guardar</Button>
+        <div className="flex flex-col gap-2 border-t border-line p-3">
+          <Button onClick={board.askNewPlay}>Nueva jugada</Button>
+          <div className="grid grid-cols-3 gap-2">
+          <Button variant="outline" onClick={board.openSave}>Guardar</Button>
           <Button variant="outline" onClick={() => void board.exportJson()}>
             Exportar
           </Button>
@@ -167,6 +169,7 @@ export function PlaysDialog() {
               reader.readAsText(file);
             }}
           />
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -259,6 +262,29 @@ function PlayForm() {
         <Button type="submit">{renaming || canUpdate ? "Guardar cambios" : "Guardar"}</Button>
       </div>
     </form>
+  );
+}
+
+export function NewPlayDialog() {
+  const board = useBoard();
+  const name = board.state.doc.meta?.name;
+  return (
+    <Dialog open={board.confirmNew} onOpenChange={(open) => !open && board.cancelNewPlay()}>
+      <DialogContent className="p-5">
+        <DialogTitle className="pr-10 text-xl font-semibold">Nueva jugada</DialogTitle>
+        <DialogDescription className="mt-2 text-sm text-muted">
+          {name
+            ? `«${name}» tiene cambios sin guardar. La copia guardada se queda como estaba y el campo empieza de cero.`
+            : "Este borrador no está guardado. Si empiezas otra jugada, lo que hay ahora en el campo se pierde."}
+        </DialogDescription>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="outline" onClick={board.cancelNewPlay}>
+            Seguir aquí
+          </Button>
+          <Button onClick={board.commitNewPlay}>Empezar nueva</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -74,7 +74,7 @@ La URL HTTPS de Vercel es la que se abre en Safari del iPad para instalarla.
 - **Campo entero** y **medio campo**. El medio campo pone la línea de fondo arriba. El campo se vuelve a dibujar al girar el iPad.
 - Fichas **1–5**, **X1–X5**, el **balón** y un **obstáculo**. Se arrastran con la herramienta Mover. Se pueden quitar y volver a poner.
 - **Pasos**: cada paso guarda las flechas y la posición de las fichas. Reproducir anima el movimiento hasta el paso siguiente.
-- **Guardar** con nombre, categoría (jugada o ejercicio) y notas. Queda en la cuenta y, en este navegador, en IndexedDB. Se puede abrir, renombrar, duplicar y eliminar.
+- **Nueva jugada** deja el campo en blanco con el 5c5 de inicio y conserva el campo entero o medio campo que tuvieras. Si hay cambios sin guardar, pide confirmación. **Guardar** pone nombre, categoría (jugada o ejercicio) y notas. Queda en la cuenta y, en este navegador, en IndexedDB. Se puede abrir, renombrar, duplicar y eliminar.
 - **Salir** cierra la sesión. La siguiente cuenta no ve las jugadas de la anterior.
 - **Exportar** descarga un JSON con las jugadas. **Importar** lo vuelve a cargar. El icono de imagen exporta el paso actual en PNG (en el iPad, si el sistema lo permite, abre la hoja de compartir).
 

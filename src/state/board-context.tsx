@@ -117,6 +117,10 @@ type BoardApi = {
   duplicatePlay: (play: Play) => Promise<void>;
   confirmDeletePlay: () => Promise<void>;
   openPlay: (play: Play) => void;
+  askNewPlay: () => void;
+  confirmNew: boolean;
+  cancelNewPlay: () => void;
+  commitNewPlay: () => void;
   exportJson: () => Promise<void>;
   importJson: (text: string) => Promise<void>;
   exportPng: () => Promise<void>;
@@ -193,6 +197,7 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
   const [playsVersion, bumpPlays] = useReducer((value: number) => value + 1, 0);
   const [form, setForm] = useReducer((_: FormState | null, next: FormState | null) => next, null);
   const [confirmDelete, setConfirmDelete] = useReducer((_: Play | null, next: Play | null) => next, null);
+  const [confirmNew, setConfirmNew] = useReducer((_: boolean, next: boolean) => next, false);
   const [toast, setToast] = useReducer((_: string | null, next: string | null) => next, null);
   const [savedSig, setSavedSig] = useReducer((_: string, next: string) => next, "");
   const [playStore] = useState(createPlayStore);
@@ -459,6 +464,27 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
     }
   }, [confirmDelete, notify, userId]);
 
+  const commitNewPlay = useCallback(() => {
+    stopPlayback();
+    const doc = { ...createInitialDoc(), view: stateRef.current.doc.view };
+    dispatch({ type: "replace", doc });
+    playStore.set({ playing: false, t: 0, index: 0 });
+    setSavedSig(docSignature(doc));
+    setConfirmNew(false);
+    setPlaysOpen(false);
+    notify("Campo listo para una jugada nueva.");
+  }, [notify, playStore, stopPlayback]);
+
+  const askNewPlay = useCallback(() => {
+    const doc = stateRef.current.doc;
+    const unsaved = savedSig !== "" && docSignature(doc) !== savedSig;
+    if (unsaved) {
+      setConfirmNew(true);
+      return;
+    }
+    commitNewPlay();
+  }, [commitNewPlay, savedSig]);
+
   const openPlay = useCallback(
     (play: Play) => {
       stopPlayback();
@@ -609,6 +635,10 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
       duplicatePlay,
       confirmDeletePlay,
       openPlay,
+      askNewPlay,
+      confirmNew,
+      cancelNewPlay: () => setConfirmNew(false),
+      commitNewPlay,
       exportJson,
       importJson,
       exportPng,
@@ -633,6 +663,7 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
       playsVersion,
       form,
       confirmDelete,
+      confirmNew,
       toast,
       savedSig,
       playStore,
@@ -645,6 +676,8 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
       duplicatePlay,
       confirmDeletePlay,
       openPlay,
+      askNewPlay,
+      commitNewPlay,
       exportJson,
       importJson,
       exportPng,

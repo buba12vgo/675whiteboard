@@ -1,9 +1,9 @@
-import { Menu } from "lucide-react";
+import { Menu, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AuthScreen } from "@/components/AuthScreen";
 import { Board } from "@/components/Board";
 import { FramesBar } from "@/components/FramesBar";
-import { DeletePlayDialog, PlayFormDialog, PlaysDialog } from "@/components/PlaysDialog";
+import { DeletePlayDialog, NewPlayDialog, PlayFormDialog, PlaysDialog } from "@/components/PlaysDialog";
 import { Toolbar } from "@/components/Toolbar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -96,12 +96,23 @@ function Shell() {
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="relative min-h-0 flex-1">
           <Board />
+          <div className="pointer-events-none absolute inset-x-0 top-[max(0.55rem,env(safe-area-inset-top))] z-20 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-[max(0.55rem,env(safe-area-inset-left))] pr-[max(0.55rem,env(safe-area-inset-right))]">
+          <button
+            type="button"
+            onClick={board.askNewPlay}
+            aria-label="Nueva jugada"
+            className="pointer-events-auto inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber px-3 py-1.5 text-sm font-semibold text-ink shadow-lg"
+          >
+            <Plus className="h-4 w-4" />
+            <span className="sm:hidden">Nueva</span>
+            <span className="hidden sm:inline">Nueva jugada</span>
+          </button>
           <button
             type="button"
             onClick={board.openSave}
-            className="absolute left-1/2 top-[max(0.55rem,env(safe-area-inset-top))] z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/10 bg-ink/75 px-3 py-1.5 text-sm shadow-lg backdrop-blur"
+            className="pointer-events-auto mx-auto flex min-w-0 max-w-full items-center gap-2 rounded-full border border-white/10 bg-ink/75 px-3 py-1.5 text-sm shadow-lg backdrop-blur"
           >
-            <span className="max-w-[42vw] truncate font-medium">{label}</span>
+            <span className="truncate font-medium">{label}</span>
             {meta && (
               <span className="text-xs text-muted">{meta.category === "jugada" ? "Jugada" : "Ejercicio"}</span>
             )}
@@ -111,10 +122,11 @@ function Shell() {
             type="button"
             onClick={() => void auth.signOutUser()}
             title={auth.user?.email ?? "Salir"}
-            className="absolute right-[max(0.55rem,env(safe-area-inset-right))] top-[max(0.55rem,env(safe-area-inset-top))] z-20 max-w-[34vw] truncate rounded-full border border-white/10 bg-ink/75 px-3 py-1.5 text-sm text-muted shadow-lg backdrop-blur"
+            className="pointer-events-auto max-w-[28vw] shrink-0 truncate rounded-full border border-white/10 bg-ink/75 px-3 py-1.5 text-sm text-muted shadow-lg backdrop-blur"
           >
             Salir
           </button>
+          </div>
           <div className="pointer-events-none absolute inset-x-0 bottom-[max(0.55rem,env(safe-area-inset-bottom))] z-20 flex justify-center px-3">
             <FramesBar />
           </div>
@@ -140,6 +152,7 @@ function Shell() {
       <PlaysDialog />
       <PlayFormDialog />
       <DeletePlayDialog />
+      <NewPlayDialog />
       {board.toast && (
         <div className="pointer-events-none fixed bottom-[max(5.5rem,env(safe-area-inset-bottom))] left-1/2 z-[60] -translate-x-1/2 rounded-full bg-cream px-4 py-2 text-sm font-medium text-ink shadow-lg">
           {board.toast}
