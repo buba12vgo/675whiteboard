@@ -27,6 +27,54 @@ describe("reducer", () => {
     expect(currentFrame(state).strokes).toHaveLength(1);
   });
 
+  it("replaces a shot in one step and aims it without moving players", () => {
+    let state = createState();
+    const before = currentFrame(state).tokens.map((token) => ({ id: token.id, x: token.x, y: token.y }));
+    state = reducer(state, {
+      type: "commit-stroke",
+      stroke: {
+        id: "old",
+        points: [
+          { x: 1, y: 1, p: 0.5 },
+          { x: 2, y: 1, p: 0.5 },
+        ],
+        color: "#111",
+        width: 0.1,
+        style: "shot",
+        cap: "none",
+      },
+    });
+    state = reducer(state, {
+      type: "commit-stroke",
+      replaceIds: ["old"],
+      stroke: {
+        id: "next",
+        points: [
+          { x: 3, y: 1, p: 0.5 },
+          { x: 4, y: 1, p: 0.5 },
+        ],
+        color: "#111",
+        width: 0.1,
+        style: "shot",
+        cap: "none",
+      },
+    });
+    expect(currentFrame(state).strokes.map((stroke) => stroke.id)).toEqual(["next"]);
+    state = reducer(state, {
+      type: "aim-shot",
+      id: "next",
+      points: [
+        { x: 3, y: 1, p: 0.5 },
+        { x: 3, y: 2, p: 0.5 },
+      ],
+      snapshot: true,
+    });
+    expect(currentFrame(state).strokes[0].points[1].y).toBe(2);
+    expect(currentFrame(state).tokens.map((token) => ({ id: token.id, x: token.x, y: token.y }))).toEqual(before);
+    state = reducer(state, { type: "undo" });
+    expect(currentFrame(state).strokes[0].points[1].y).toBe(1);
+  });
+
   it("adds a step and walks players to the end of movement arrows", () => {
     let state = createState();
     const mover = currentFrame(state).tokens.find((token) => token.id === "atk-1");

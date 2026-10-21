@@ -88,7 +88,7 @@ export function renderBoardCanvas(
   orientationHint: CourtTransform["orientation"],
   strokes: Stroke[],
   tokens: Array<Token & { opacity?: number }>,
-  paint: CourtPaint = { three: true, floor: "parquet-light", flatColor: "#1d4e89" },
+  paint: CourtPaint = { three: true, floor: "light", flatColor: "#1d4e89" },
 ): HTMLCanvasElement {
   const pad = 56;
   let width = 2400;

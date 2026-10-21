@@ -12,6 +12,7 @@ import {
 import { fitCourt, type CourtTransform } from "@/lib/geometry";
 import { canvasToPng, renderBoardCanvas } from "@/lib/image";
 import { ballHolderId } from "@/lib/movement";
+import { playerForShot, shotOwner, shotPoints } from "@/lib/shot";
 import { hitTestStroke, renderStrokes, simplifyPoints } from "@/lib/strokes";
 import { interpolateTokens } from "@/lib/playback";
 import type { Point, Stroke } from "@/lib/types";
@@ -35,6 +36,7 @@ export function Board() {
     cap,
     width,
     commitStroke,
+    aimShot,
     eraseStrokes,
     moveToken,
     rotateToken,
@@ -61,6 +63,7 @@ export function Board() {
     stateRef.current = state;
   });
   const liveRef = useRef<Stroke | null>(null);
+  const gestureRef = useRef<Point[]>([]);
   const hiddenRef = useRef<Set<string>>(new Set());
   const activePointer = useRef<number | null>(null);
   const penActive = useRef(false);
@@ -78,6 +81,12 @@ export function Board() {
     pointer: number;
     cx: number;
     cy: number;
+    recorded: boolean;
+  } | null>(null);
+  const aimRef = useRef<{
+    id: string;
+    playerId: string;
+    pointer: number;
     recorded: boolean;
   } | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -203,13 +212,14 @@ export function Board() {
       return;
     }
 
+    gestureRef.current = [point];
     liveRef.current = {
       id: uid(),
-      points: [point],
+      points: currentTool.lineStyle === "shot" ? shotPreview([point]) : [point],
       color: currentTool.color,
       width: currentTool.width,
       style: currentTool.lineStyle,
-      cap: currentTool.cap,
+      cap: currentTool.lineStyle === "shot" ? "none" : currentTool.cap,
     };
     drawInkRef.current();
   }
@@ -228,6 +238,15 @@ export function Board() {
     const live = liveRef.current;
     const current = transformRef.current;
     if (!live || !current) return;
+    if (live.style === "shot") {
+      const last = samples[samples.length - 1];
+      const gesture = gestureRef.current;
+      if (gesture.length < 2) gesture.push(last);
+      else gesture[gesture.length - 1] = last;
+      live.points = shotPreview(gesture);
+      drawInkRef.current();
+      return;
+    }
     const min = 0.65 / current.scale;
     for (const sample of samples) {
       const last = live.points[live.points.length - 1];
@@ -251,9 +270,73 @@ export function Board() {
     const live = liveRef.current;
     liveRef.current = null;
     if (!live) return;
+    if (live.style === "shot") {
+      const gesture = gestureRef.current.length ? gestureRef.current : live.points;
+      gestureRef.current = [];
+      const doc = stateRef.current.doc;
+      const frame = doc.frames[doc.frameIndex];
+      const player = frame ? playerForShot(frame.tokens, gesture) : null;
+      const scale = transformRef.current?.scale ?? 60;
+      if (!player || !frame) {
+        drawInkRef.current();
+        return;
+      }
+      const points = shotPoints(player, gesture, doc.view, scale);
+      const replaceIds = frame.strokes.filter((stroke) => shotOwner(frame.tokens, stroke)?.id === player.id).map((stroke) => stroke.id);
+      commitStroke({ ...live, points, cap: "none" }, replaceIds);
+      return;
+    }
+    gestureRef.current = [];
     const scale = transformRef.current?.scale ?? 50;
     const simplified = simplifyPoints(live.points, 0.75 / scale);
     commitStroke({ ...live, points: simplified.length ? simplified : live.points });
+  }
+
+  function shotPreview(gesture: Point[]): Point[] {
+    const doc = stateRef.current.doc;
+    const frame = doc.frames[doc.frameIndex];
+    const player = frame ? playerForShot(frame.tokens, gesture) : null;
+    if (!player) return [];
+    return shotPoints(player, gesture, doc.view, transformRef.current?.scale ?? 60);
+  }
+
+  function courtFromClient(clientX: number, clientY: number): Point | null {
+    const current = transformRef.current;
+    const canvas = inkRef.current;
+    if (!current || !canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const court = current.toCourt(clientX - rect.left, clientY - rect.top);
+    return { x: court.x, y: court.y, p: 0.5 };
+  }
+
+  function beginAim(event: React.PointerEvent, stroke: Stroke) {
+    if (tool !== "move" || play.playing) return;
+    const doc = stateRef.current.doc;
+    const tokens = doc.frames[doc.frameIndex]?.tokens ?? [];
+    const player = shotOwner(tokens, stroke);
+    if (!player) return;
+    event.stopPropagation();
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    aimRef.current = { id: stroke.id, playerId: player.id, pointer: event.pointerId, recorded: false };
+  }
+
+  function dragAim(event: React.PointerEvent) {
+    const aim = aimRef.current;
+    if (!aim || aim.pointer !== event.pointerId) return;
+    const point = courtFromClient(event.clientX, event.clientY);
+    const doc = stateRef.current.doc;
+    const player = doc.frames[doc.frameIndex]?.tokens.find((token) => token.id === aim.playerId);
+    const scale = transformRef.current?.scale ?? 60;
+    if (!point || !player) return;
+    if (Math.hypot(point.x - player.x, point.y - player.y) < 0.2) return;
+    const points = shotPoints(player, [{ x: player.x, y: player.y, p: 0.5 }, point], doc.view, scale, true);
+    if (!aim.recorded) {
+      aim.recorded = true;
+      aimShot(aim.id, points, true);
+    } else {
+      aimShot(aim.id, points, false);
+    }
   }
 
   function eraseAt(point: Point) {
@@ -369,7 +452,26 @@ export function Board() {
           ref={overlayRef}
           className="absolute inset-0"
           style={{ pointerEvents: tool === "move" && !play.playing ? "auto" : "none" }}
-          onPointerDown={() => setSelected(null)}
+          onPointerDown={(event) => {
+            if (event.target !== event.currentTarget) return;
+            const point = courtFromClient(event.clientX, event.clientY);
+            const strokes = stateRef.current.doc.frames[stateRef.current.doc.frameIndex]?.strokes ?? [];
+            const hit = point
+              ? [...strokes].reverse().find((stroke) => stroke.style === "shot" && hitTestStroke(stroke, point.x, point.y, 0.5))
+              : undefined;
+            if (hit) {
+              beginAim(event, hit);
+              return;
+            }
+            setSelected(null);
+          }}
+          onPointerMove={dragAim}
+          onPointerUp={() => {
+            aimRef.current = null;
+          }}
+          onPointerCancel={() => {
+            aimRef.current = null;
+          }}
         >
           {displayTokens.map((token) => {
             const screen = transform.toScreen(token.x, token.y);
@@ -488,6 +590,40 @@ export function Board() {
               </div>
             );
           })}
+          {tool === "move" &&
+            !play.playing &&
+            frame.strokes
+              .filter((stroke) => stroke.style === "shot" && stroke.points.length > 1)
+              .map((stroke) => {
+                const tip = stroke.points[stroke.points.length - 1];
+                const screen = transform.toScreen(tip.x, tip.y);
+                return (
+                  <button
+                    key={stroke.id}
+                    type="button"
+                    aria-label="Orientar tiro"
+                    className="absolute z-10 grid place-items-center rounded-full border-2 border-amber bg-cream shadow"
+                    style={{
+                      left: screen.x,
+                      top: screen.y,
+                      width: 22,
+                      height: 22,
+                      transform: "translate(-50%, -50%)",
+                      touchAction: "none",
+                    }}
+                    onPointerDown={(event) => beginAim(event, stroke)}
+                    onPointerMove={dragAim}
+                    onPointerUp={() => {
+                      aimRef.current = null;
+                    }}
+                    onPointerCancel={() => {
+                      aimRef.current = null;
+                    }}
+                  >
+                    <span className="h-2.5 w-2.5 rounded-full bg-amber" />
+                  </button>
+                );
+              })}
         </div>
       )}
       {tool === "erase" && cursor && transform && (

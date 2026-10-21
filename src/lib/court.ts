@@ -20,11 +20,11 @@ import { isLightColor } from "@/lib/utils";
 const LINE = "#173454";
 
 export const COURT_FLOORS = [
-  { id: "parquet-light", label: "Parquet claro" },
-  { id: "parquet-dark", label: "Parquet oscuro" },
   { id: "light", label: "Claro" },
   { id: "dark", label: "Oscuro" },
   { id: "flat", label: "Color plano" },
+  { id: "parquet-light", label: "Parquet claro" },
+  { id: "parquet-dark", label: "Parquet oscuro" },
 ] as const;
 
 export type CourtFloor = (typeof COURT_FLOORS)[number]["id"];
@@ -42,6 +42,24 @@ const FLOOR_IDS = new Set<string>(COURT_FLOORS.map((item) => item.id));
 
 export function isCourtFloor(value: unknown): value is CourtFloor {
   return typeof value === "string" && FLOOR_IDS.has(value);
+}
+
+/** Bump when the automatic floor default changes, so a saved parquet start opens on cream. */
+export const FLOOR_DEFAULT_VERSION = 2;
+
+export function resolveFloorSetting(parsed: { floor?: unknown; floorVersion?: unknown }): {
+  floor: CourtFloor;
+  floorVersion: number;
+} {
+  const version = typeof parsed.floorVersion === "number" && Number.isFinite(parsed.floorVersion) ? parsed.floorVersion : 0;
+  const stored = isCourtFloor(parsed.floor) ? parsed.floor : null;
+  if (version < FLOOR_DEFAULT_VERSION) {
+    return {
+      floor: stored && stored !== "parquet-light" ? stored : "light",
+      floorVersion: FLOOR_DEFAULT_VERSION,
+    };
+  }
+  return { floor: stored ?? "light", floorVersion: version };
 }
 
 export function courtInk(floor: CourtFloor, flatColor: string): { line: string; lane: string } {
@@ -219,7 +237,7 @@ export type CourtPaint = {
   flatColor: string;
 };
 
-const DEFAULT_PAINT: CourtPaint = { three: true, floor: "parquet-light", flatColor: FLAT_COLORS[0].value };
+const DEFAULT_PAINT: CourtPaint = { three: true, floor: "light", flatColor: FLAT_COLORS[0].value };
 
 export function drawCourt(ctx: CanvasRenderingContext2D, transform: CourtTransform, paint: CourtPaint = DEFAULT_PAINT) {
   const { rect, scale } = transform;

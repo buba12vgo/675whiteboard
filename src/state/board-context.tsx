@@ -13,12 +13,12 @@ import {
 } from "react";
 import { cloudDeletePlay, cloudLoadDraft, cloudPutPlay, cloudSaveDraft, subscribePlays } from "@/lib/cloud";
 import { getPlay, listPlays, loadDraftRecord, putPlay, removePlay, saveDraft, syncPlays } from "@/lib/db";
-import { FLAT_COLORS, isCourtFloor, type CourtFloor } from "@/lib/court";
+import { FLAT_COLORS, FLOOR_DEFAULT_VERSION, resolveFloorSetting, type CourtFloor } from "@/lib/court";
 import { downloadJson, shareOrDownload } from "@/lib/image";
 import { pngFilename } from "@/lib/image";
 import { draftFromPlay, parsePlays, playFromDraft, serializePlays } from "@/lib/schema";
 import { tokenFromRoster } from "@/lib/tokens";
-import type { Category, LineCap, LineStyle, Play, Stroke, Tool } from "@/lib/types";
+import type { Category, LineCap, LineStyle, Play, Point, Stroke, Tool } from "@/lib/types";
 import { easeInOut, uid } from "@/lib/utils";
 import {
   canRedo,
@@ -43,6 +43,7 @@ type Settings = {
   showThree: boolean;
   floor: CourtFloor;
   flatColor: string;
+  floorVersion: number;
 };
 
 type FormState = { mode: "save" } | { mode: "rename"; play: Play };
@@ -102,7 +103,8 @@ type BoardApi = {
   redo: () => void;
   clearStrokes: () => void;
   toggleView: () => void;
-  commitStroke: (stroke: Stroke) => void;
+  commitStroke: (stroke: Stroke, replaceIds?: string[]) => void;
+  aimShot: (id: string, points: Point[], snapshot: boolean) => void;
   eraseStrokes: (ids: string[]) => void;
   moveToken: (id: string, x: number, y: number, snapshot: boolean) => void;
   rotateToken: (id: string, rotation: number, snapshot: boolean) => void;
@@ -140,19 +142,20 @@ function loadSettings(): Settings {
     width: 0.1,
     toolbarOpen: true,
     showThree: true,
-    floor: "parquet-light",
+    floor: "light",
     flatColor: FLAT_COLORS[0].value,
+    floorVersion: FLOOR_DEFAULT_VERSION,
   };
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw) as Partial<Settings>;
-    const floor = isCourtFloor(parsed.floor) ? parsed.floor : null;
-    if (!floor) return { ...fallback, ...parsed, floor: fallback.floor, showThree: true, flatColor: fallback.flatColor };
+    const floorChoice = resolveFloorSetting(parsed);
     return {
       ...fallback,
       ...parsed,
-      floor,
+      floor: floorChoice.floor,
+      floorVersion: floorChoice.floorVersion,
       flatColor: typeof parsed.flatColor === "string" ? parsed.flatColor : fallback.flatColor,
       showThree: typeof parsed.showThree === "boolean" ? parsed.showThree : true,
     };
@@ -316,7 +319,18 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
   }, [notify, ready, state.doc, userId]);
 
   useEffect(() => {
-    const next: Settings = { tool, color, lineStyle, cap, width, toolbarOpen, showThree, floor, flatColor };
+    const next: Settings = {
+      tool,
+      color,
+      lineStyle,
+      cap,
+      width,
+      toolbarOpen,
+      showThree,
+      floor,
+      flatColor,
+      floorVersion: FLOOR_DEFAULT_VERSION,
+    };
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
     } catch {
@@ -608,7 +622,8 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
       redo: () => edit({ type: "redo" }),
       clearStrokes: () => edit({ type: "clear-strokes" }),
       toggleView: () => edit({ type: "set-view", view: state.doc.view === "half" ? "full" : "half" }),
-      commitStroke: (stroke) => edit({ type: "commit-stroke", stroke }),
+      commitStroke: (stroke, replaceIds) => edit({ type: "commit-stroke", stroke, replaceIds }),
+      aimShot: (id, points, snapshot) => edit({ type: "aim-shot", id, points, snapshot }),
       eraseStrokes: (ids) => edit({ type: "erase-strokes", ids }),
       moveToken: (id, x, y, snapshot) => edit({ type: "move-token", id, x, y, snapshot }),
       rotateToken: (id, rotation, snapshot) => edit({ type: "rotate-token", id, rotation, snapshot }),

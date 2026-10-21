@@ -23,7 +23,8 @@ export type Action =
   | { type: "replace"; doc: Draft }
   | { type: "set-view"; view: CourtView }
   | { type: "set-meta"; meta: PlayMeta | null }
-  | { type: "commit-stroke"; stroke: Stroke }
+  | { type: "commit-stroke"; stroke: Stroke; replaceIds?: string[] }
+  | { type: "aim-shot"; id: string; points: Stroke["points"]; snapshot: boolean }
   | { type: "erase-strokes"; ids: string[] }
   | { type: "move-token"; id: string; x: number; y: number; snapshot: boolean }
   | { type: "rotate-token"; id: string; rotation: number; snapshot: boolean }
@@ -110,12 +111,21 @@ export function reducer(state: State, action: Action): State {
     case "commit-stroke": {
       if (action.stroke.points.length === 0) return state;
       const frame = currentFrame(state);
-      return withFrame(
-        state,
-        frame.id,
-        { ...frame, strokes: [...frame.strokes, action.stroke] },
-        true,
-      );
+      const drop = new Set(action.replaceIds ?? []);
+      const kept = drop.size ? frame.strokes.filter((stroke) => !drop.has(stroke.id)) : frame.strokes;
+      return withFrame(state, frame.id, { ...frame, strokes: [...kept, action.stroke] }, true);
+    }
+    case "aim-shot": {
+      if (action.points.length < 2) return state;
+      const frame = currentFrame(state);
+      const stroke = frame.strokes.find((item) => item.id === action.id);
+      if (!stroke || stroke.style !== "shot") return state;
+      const same =
+        stroke.points.length === action.points.length &&
+        stroke.points.every((point, index) => point.x === action.points[index].x && point.y === action.points[index].y);
+      if (same) return state;
+      const strokes = frame.strokes.map((item) => (item.id === action.id ? { ...item, points: action.points } : item));
+      return withFrame(state, frame.id, { ...frame, strokes }, action.snapshot);
     }
     case "erase-strokes": {
       if (action.ids.length === 0) return state;

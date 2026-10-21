@@ -1,5 +1,6 @@
 import getStroke from "perfect-freehand";
 import type { CourtTransform } from "@/lib/geometry";
+import { shotPaint } from "@/lib/shot";
 import type { Point, Stroke } from "@/lib/types";
 import { isLightColor } from "@/lib/utils";
 
@@ -111,7 +112,7 @@ export function assistPoints(points: XY[], radius: number): XY[] {
   return [...points.slice(0, -1), ...loop, end];
 }
 
-/** Shift a stroke sideways so a shot can be drawn as two parallel lines. */
+/** Shift a polyline sideways by a pixel distance. */
 export function offsetPolyline(points: XY[], distance: number): XY[] {
   if (points.length === 0 || distance === 0) return points.map((point) => ({ ...point }));
   return points.map((point, index) => {
@@ -124,29 +125,6 @@ export function offsetPolyline(points: XY[], distance: number): XY[] {
     dy /= len;
     return { x: point.x - dy * distance, y: point.y + dx * distance };
   });
-}
-
-function shortenEnd(points: XY[], amount: number): XY[] {
-  if (points.length < 2 || amount <= 0) return points;
-  const out = points.map((point) => ({ ...point }));
-  let left = amount;
-  while (out.length > 1 && left > 0) {
-    const a = out[out.length - 2];
-    const b = out[out.length - 1];
-    const dist = Math.hypot(b.x - a.x, b.y - a.y);
-    if (dist === 0) {
-      out.pop();
-      continue;
-    }
-    if (dist > left) {
-      const t = (dist - left) / dist;
-      out[out.length - 1] = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
-      break;
-    }
-    left -= dist;
-    out.pop();
-  }
-  return out;
 }
 
 export function zigzagPoints(points: XY[], step: number, amplitude: number): XY[] {
@@ -203,6 +181,39 @@ function drawTee(ctx: CanvasRenderingContext2D, from: XY, to: XY, length: number
   ctx.stroke();
 }
 
+/** Short fixed "=>": two parallel strokes and an open chevron, not a filled head. */
+function drawShotMark(ctx: CanvasRenderingContext2D, from: XY, to: XY, color: string, scale: number) {
+  const paint = shotPaint(scale);
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const len = Math.hypot(dx, dy);
+  if (len < 4) return;
+  const ux = dx / len;
+  const uy = dy / len;
+  const px = -uy;
+  const py = ux;
+  const head = Math.min(paint.head, len * 0.48);
+  const shaft = Math.max(len * 0.52, len - head * 0.55);
+  const gap = paint.gap / 2;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = paint.line;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  for (const side of [-1, 1]) {
+    ctx.moveTo(from.x + px * gap * side, from.y + py * gap * side);
+    ctx.lineTo(from.x + ux * shaft + px * gap * side, from.y + uy * shaft + py * gap * side);
+  }
+  ctx.stroke();
+  const angle = Math.atan2(uy, ux);
+  const spread = 0.58;
+  ctx.beginPath();
+  ctx.moveTo(to.x - head * Math.cos(angle - spread), to.y - head * Math.sin(angle - spread));
+  ctx.lineTo(to.x, to.y);
+  ctx.lineTo(to.x - head * Math.cos(angle + spread), to.y - head * Math.sin(angle + spread));
+  ctx.stroke();
+}
+
 function traceSmooth(ctx: CanvasRenderingContext2D, points: XY[]) {
   ctx.beginPath();
   ctx.moveTo(points[0].x, points[0].y);
@@ -246,6 +257,20 @@ export function renderStroke(
     ctx.shadowBlur = 2.5;
   }
 
+  if (stroke.style === "shot") {
+    if (pts.length > 1) {
+      const from = pts[0];
+      const tip = pts[pts.length - 1];
+      const dx = tip.x - from.x;
+      const dy = tip.y - from.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const draw = Math.min(len, shotPaint(scale).length);
+      drawShotMark(ctx, from, { x: from.x + (dx / len) * draw, y: from.y + (dy / len) * draw }, stroke.color, scale);
+    }
+    ctx.restore();
+    return;
+  }
+
   if (stroke.style === "solid") {
     const usesPen = pts.some((point) => point.p > 0 && point.p !== 0.5);
     const outline = getStroke(
@@ -275,20 +300,6 @@ export function renderStroke(
       ctx.fill();
     }
   } else {
-    if (stroke.style === "shot" && pts.length > 1) {
-      const gap = Math.max(4.5, widthPx * 1.15);
-      const trim = complete ? Math.max(11, widthPx * 2.2) : 0;
-      ctx.strokeStyle = stroke.color;
-      ctx.lineWidth = Math.max(1.35, widthPx * 0.72);
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      for (const side of [gap, -gap]) {
-        const path = shortenEnd(offsetPolyline(pts, side), trim);
-        if (path.length < 2) continue;
-        traceSmooth(ctx, path);
-        ctx.stroke();
-      }
-    } else {
     const path =
       stroke.style === "zigzag"
         ? zigzagPoints(pts, Math.max(10, 0.42 * scale), Math.max(5, 0.26 * scale))
@@ -313,14 +324,12 @@ export function renderStroke(
       ctx.stroke();
       ctx.setLineDash([]);
     }
-    }
   }
 
-  const shotArrow = stroke.style === "shot";
-  if (complete && (shotArrow || stroke.cap !== "none") && pts.length > 1) {
+  if (complete && stroke.cap !== "none" && pts.length > 1) {
     const dir = endDirection(pts);
     if (dir && Math.hypot(dir.to.x - dir.from.x, dir.to.y - dir.from.y) > 4) {
-      if (shotArrow || stroke.cap === "arrow") {
+      if (stroke.cap === "arrow") {
         drawArrow(ctx, dir.from, dir.to, Math.max(12, widthPx * 2.5), stroke.color);
       } else {
         drawTee(ctx, dir.from, dir.to, Math.max(16, 0.95 * scale), Math.max(widthPx, 3), stroke.color);
