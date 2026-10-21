@@ -1,11 +1,13 @@
 import {
   arcPoints,
+  BACKBOARD_INSET,
   BASKET_INSET,
   COURT_LENGTH,
   COURT_WIDTH,
   KEY_LENGTH,
   KEY_WIDTH,
   LINE_WIDTH,
+  RIM_RADIUS,
   THREE_ALPHA,
   THREE_CORNER,
   THREE_DX,
@@ -95,7 +97,7 @@ function sideOnCourt(transform: CourtTransform, side: "left" | "right") {
   return x >= transform.visible.x0 - 0.2 && x <= transform.visible.x1 + 0.2;
 }
 
-/** Closed rectangular lane. No rim, no free-throw circle, no hash marks. */
+/** Closed rectangular lane. No free-throw circle and no hash marks. */
 function drawLane(
   ctx: CanvasRenderingContext2D,
   transform: CourtTransform,
@@ -170,6 +172,26 @@ function drawParquet(ctx: CanvasRenderingContext2D, transform: CourtTransform, t
   }
 }
 
+/** Backboard, neck and rim. The baseline is at the top of a half court. */
+function drawBasket(ctx: CanvasRenderingContext2D, transform: CourtTransform, side: "left" | "right", line: string) {
+  const sign = side === "left" ? 1 : -1;
+  const baseline = baselineOf(side);
+  const mid = COURT_WIDTH / 2;
+  const face = baseline + sign * BACKBOARD_INSET;
+  const outer = face - sign * 0.16;
+  const half = 0.9;
+  fillBoard(ctx, transform, Math.min(face, outer), mid - half, Math.max(face, outer), mid + half, line);
+  const rimX = baseline + sign * BASKET_INSET;
+  const neckEnd = rimX - sign * RIM_RADIUS;
+  fillBoard(ctx, transform, Math.min(face, neckEnd), mid - 0.07, Math.max(face, neckEnd), mid + 0.07, line);
+  const center = transform.toScreen(rimX, mid);
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, RIM_RADIUS * transform.scale, 0, Math.PI * 2);
+  ctx.strokeStyle = line;
+  ctx.lineWidth = Math.max(2, LINE_WIDTH * transform.scale * 1.2);
+  ctx.stroke();
+}
+
 function drawThree(ctx: CanvasRenderingContext2D, transform: CourtTransform, side: "left" | "right", line: string) {
   const sign = side === "left" ? 1 : -1;
   const baseline = baselineOf(side);
@@ -232,6 +254,7 @@ export function drawCourt(ctx: CanvasRenderingContext2D, transform: CourtTransfo
     if (!sideOnCourt(transform, side)) continue;
     drawLane(ctx, transform, side, ink);
     if (paint.three) drawThree(ctx, transform, side, ink.line);
+    drawBasket(ctx, transform, side, ink.line);
   }
 
   if (transform.view === "full") {

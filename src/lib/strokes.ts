@@ -111,24 +111,42 @@ export function assistPoints(points: XY[], radius: number): XY[] {
   return [...points.slice(0, -1), ...loop, end];
 }
 
-/** Shot: a smooth wave that starts and ends on the drawn line. */
-export function wavePoints(points: XY[], step: number, amplitude: number): XY[] {
-  const samples = resample(points, step);
-  if (samples.length < 3) return samples;
-  const last = samples.length - 1;
-  return samples.map((point, index) => {
-    if (index === 0 || index === last) return point;
-    const prev = samples[index - 1];
-    const next = samples[Math.min(last, index + 1)];
-    const dx = next.x - prev.x;
-    const dy = next.y - prev.y;
+/** Shift a stroke sideways so a shot can be drawn as two parallel lines. */
+export function offsetPolyline(points: XY[], distance: number): XY[] {
+  if (points.length === 0 || distance === 0) return points.map((point) => ({ ...point }));
+  return points.map((point, index) => {
+    const prev = points[Math.max(0, index - 1)];
+    const next = points[Math.min(points.length - 1, index + 1)];
+    let dx = next.x - prev.x;
+    let dy = next.y - prev.y;
     const len = Math.hypot(dx, dy) || 1;
-    const side = Math.sin((index / last) * Math.PI * 3);
-    return {
-      x: point.x + (-dy / len) * amplitude * side,
-      y: point.y + (dx / len) * amplitude * side,
-    };
+    dx /= len;
+    dy /= len;
+    return { x: point.x - dy * distance, y: point.y + dx * distance };
   });
+}
+
+function shortenEnd(points: XY[], amount: number): XY[] {
+  if (points.length < 2 || amount <= 0) return points;
+  const out = points.map((point) => ({ ...point }));
+  let left = amount;
+  while (out.length > 1 && left > 0) {
+    const a = out[out.length - 2];
+    const b = out[out.length - 1];
+    const dist = Math.hypot(b.x - a.x, b.y - a.y);
+    if (dist === 0) {
+      out.pop();
+      continue;
+    }
+    if (dist > left) {
+      const t = (dist - left) / dist;
+      out[out.length - 1] = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+      break;
+    }
+    left -= dist;
+    out.pop();
+  }
+  return out;
 }
 
 export function zigzagPoints(points: XY[], step: number, amplitude: number): XY[] {
@@ -257,14 +275,26 @@ export function renderStroke(
       ctx.fill();
     }
   } else {
+    if (stroke.style === "shot" && pts.length > 1) {
+      const gap = Math.max(4.5, widthPx * 1.15);
+      const trim = complete ? Math.max(11, widthPx * 2.2) : 0;
+      ctx.strokeStyle = stroke.color;
+      ctx.lineWidth = Math.max(1.35, widthPx * 0.72);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      for (const side of [gap, -gap]) {
+        const path = shortenEnd(offsetPolyline(pts, side), trim);
+        if (path.length < 2) continue;
+        traceSmooth(ctx, path);
+        ctx.stroke();
+      }
+    } else {
     const path =
       stroke.style === "zigzag"
         ? zigzagPoints(pts, Math.max(10, 0.42 * scale), Math.max(5, 0.26 * scale))
-        : stroke.style === "shot"
-          ? wavePoints(pts, Math.max(8, 0.28 * scale), Math.max(4, 0.18 * scale))
-          : stroke.style === "assist"
-            ? assistPoints(pts, Math.max(7, 0.22 * scale))
-            : pts;
+        : stroke.style === "assist"
+          ? assistPoints(pts, Math.max(7, 0.22 * scale))
+          : pts;
     if (path.length === 1) {
       ctx.fillStyle = stroke.color;
       ctx.beginPath();
@@ -283,12 +313,14 @@ export function renderStroke(
       ctx.stroke();
       ctx.setLineDash([]);
     }
+    }
   }
 
-  if (complete && stroke.cap !== "none" && pts.length > 1) {
+  const shotArrow = stroke.style === "shot";
+  if (complete && (shotArrow || stroke.cap !== "none") && pts.length > 1) {
     const dir = endDirection(pts);
     if (dir && Math.hypot(dir.to.x - dir.from.x, dir.to.y - dir.from.y) > 4) {
-      if (stroke.cap === "arrow") {
+      if (shotArrow || stroke.cap === "arrow") {
         drawArrow(ctx, dir.from, dir.to, Math.max(12, widthPx * 2.5), stroke.color);
       } else {
         drawTee(ctx, dir.from, dir.to, Math.max(16, 0.95 * scale), Math.max(widthPx, 3), stroke.color);

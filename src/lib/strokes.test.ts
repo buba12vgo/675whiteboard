@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assistPoints, hitTestStroke, resample, simplifyPoints, wavePoints, zigzagPoints } from "./strokes.ts";
+import { assistPoints, hitTestStroke, offsetPolyline, resample, simplifyPoints, zigzagPoints } from "./strokes.ts";
 import type { Stroke } from "./types.ts";
 
 const stroke: Stroke = {
@@ -61,19 +61,18 @@ describe("strokes", () => {
     expect(points.some((point) => Math.abs(point.y) > 0.4)).toBe(true);
   });
 
-  it("waves a shot off the line and keeps both ends", () => {
-    const points = wavePoints(
-      [
-        { x: 0, y: 0 },
-        { x: 12, y: 0 },
-      ],
-      1.5,
-      1,
-    );
-    expect(points[0]).toEqual({ x: 0, y: 0 });
-    expect(points.at(-1)).toEqual({ x: 12, y: 0 });
-    const offset = points.slice(1, -1).some((point) => Math.abs(point.y) > 0.4);
-    expect(offset).toBe(true);
+  it("offsets a shot into two parallel lines", () => {
+    const line = [
+      { x: 0, y: 0 },
+      { x: 12, y: 0 },
+    ];
+    const upper = offsetPolyline(line, 1);
+    const lower = offsetPolyline(line, -1);
+    expect(upper[0].x).toBeCloseTo(0);
+    expect(upper.at(-1)?.x).toBeCloseTo(12);
+    expect(upper[0].y).toBeCloseTo(1);
+    expect(lower[0].y).toBeCloseTo(-1);
+    expect(upper[0].y - lower[0].y).toBeCloseTo(2);
   });
 
   it("simplifies a straight stroke to the ends", () => {
