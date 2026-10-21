@@ -295,7 +295,7 @@ function RosterGroup({ title, ids }: { title: string; ids: string[] }) {
 function FloorSwatch({ floor, flatColor }: { floor: CourtFloor; flatColor: string }) {
   const style =
     floor === "parquet-light"
-      ? { background: "repeating-linear-gradient(90deg, #f3ddb4 0 3px, #e8c48c 3px 6px, #deb67a 6px 9px)" }
+      ? { background: "repeating-linear-gradient(90deg, #f3e6d0 0 4px, #e7d4b6 4px 7px, #c9ae8c 7px 10px, #efe0c8 10px 14px)" }
       : floor === "parquet-dark"
         ? { background: "repeating-linear-gradient(90deg, #7c5230 0 3px, #4c3016 3px 6px, #6e4524 6px 9px)" }
         : floor === "dark"

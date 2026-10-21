@@ -43,8 +43,9 @@ export function isCourtFloor(value: unknown): value is CourtFloor {
 }
 
 export function courtInk(floor: CourtFloor, flatColor: string): { line: string; lane: string } {
-  const dark =
-    floor === "dark" || floor === "parquet-dark" || (floor === "flat" && !isLightColor(flatColor));
+  if (floor === "parquet-light") return { line: "#f7f4ee", lane: "#3b87c9" };
+  if (floor === "parquet-dark") return { line: "#f4efe4", lane: "#1e568f" };
+  const dark = floor === "dark" || (floor === "flat" && !isLightColor(flatColor));
   return dark
     ? { line: "#f4efe4", lane: "rgba(255,255,255,0.12)" }
     : { line: LINE, lane: "rgba(23, 52, 84, 0.1)" };
@@ -138,25 +139,34 @@ function fillBoard(
   ctx.fill();
 }
 
+/** Long strips along the court length, close in tone but distinct enough to read as boards. */
+const LIGHT_BOARDS = ["#e7d4b6", "#f3e6d0", "#dcc6a6", "#efe0c8", "#c9ae8c", "#e8d5b8", "#f6eee2", "#d4b898"];
+const DARK_BOARDS = ["#6b4630", "#543828", "#7a5340", "#4a3120", "#62422e", "#3e291c", "#70503a", "#5c4030"];
+
 function drawParquet(ctx: CanvasRenderingContext2D, transform: CourtTransform, tone: "light" | "dark") {
-  const colors =
-    tone === "light"
-      ? ["#f3ddb4", "#e8c48c", "#f7e4c4", "#deb67a", "#efd0a0"]
-      : ["#6e4524", "#593618", "#7c5230", "#4c3016", "#62401f"];
+  const boards = tone === "light" ? LIGHT_BOARDS : DARK_BOARDS;
+  const seam = tone === "light" ? "#b89a78" : "#2e2016";
   const { visible } = transform;
-  const plank = 0.12;
-  const board = 2.2;
-  let index = 0;
-  for (let y = visible.y0; y < visible.y1 - 0.001; y += plank) {
-    const yb = Math.min(visible.y1, y + plank);
-    const shift = index % 2 === 0 ? 0 : board / 2;
-    const color = colors[index % colors.length];
-    for (let x = visible.x0 - shift; x < visible.x1; x += board) {
-      const a = Math.max(visible.x0, x);
-      const b = Math.min(visible.x1, x + board);
-      if (b - a > 0.02) fillBoard(ctx, transform, a, y, b, yb, color);
-    }
+  const plank = 0.16;
+  const yStart = Math.floor(visible.y0 / plank) * plank;
+  let index = Math.round(yStart / plank);
+  for (let y = yStart; y < visible.y1 - 0.001; y += plank) {
+    const y0 = Math.max(visible.y0, y);
+    const y1 = Math.min(visible.y1, y + plank);
+    const color = boards[((index % boards.length) + boards.length) % boards.length];
+    if (y1 - y0 > 0.004) fillBoard(ctx, transform, visible.x0, y0, visible.x1, y1, color);
     index += 1;
+  }
+  ctx.strokeStyle = seam;
+  ctx.lineWidth = Math.max(1, transform.scale * 0.015);
+  ctx.lineCap = "butt";
+  for (let y = yStart + plank; y < visible.y1; y += plank) {
+    const a = transform.toScreen(visible.x0, y);
+    const b = transform.toScreen(visible.x1, y);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
   }
 }
 
