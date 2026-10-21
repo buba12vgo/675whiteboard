@@ -19,7 +19,7 @@ import { downloadJson, shareOrDownload } from "@/lib/image";
 import { pngFilename } from "@/lib/image";
 import { draftFromPlay, parsePlays, playFromDraft, serializePlays } from "@/lib/schema";
 import { tokenFromRoster } from "@/lib/tokens";
-import type { Category, LineCap, LineStyle, Play, Point, Stroke, Tool } from "@/lib/types";
+import type { Category, CourtKind, LineCap, LineStyle, Play, Point, Stroke, Tool } from "@/lib/types";
 import { easeInOut, uid } from "@/lib/utils";
 import {
   canRedo,
@@ -41,7 +41,6 @@ type Settings = {
   cap: LineCap;
   width: number;
   toolbarOpen: boolean;
-  showThree: boolean;
   floor: CourtFloor;
   flatColor: string;
   floorVersion: number;
@@ -75,7 +74,6 @@ type BoardApi = {
   cap: LineCap;
   width: number;
   toolbarOpen: boolean;
-  showThree: boolean;
   floor: CourtFloor;
   flatColor: string;
   attackColor: string;
@@ -95,7 +93,7 @@ type BoardApi = {
   setCap: (cap: LineCap) => void;
   setWidth: (width: number) => void;
   setToolbarOpen: (open: boolean) => void;
-  setShowThree: (show: boolean) => void;
+  setCourt: (court: CourtKind) => void;
   setFloor: (floor: CourtFloor) => void;
   setFlatColor: (color: string) => void;
   setAttackColor: (color: string) => void;
@@ -148,7 +146,6 @@ function loadSettings(): Settings {
     cap: "arrow",
     width: 0.1,
     toolbarOpen: true,
-    showThree: true,
     floor: "light",
     flatColor: FLAT_COLORS[0].value,
     floorVersion: FLOOR_DEFAULT_VERSION,
@@ -168,7 +165,6 @@ function loadSettings(): Settings {
       flatColor: typeof parsed.flatColor === "string" ? parsed.flatColor : fallback.flatColor,
       attackColor: isRoleColor(parsed.attackColor) ? parsed.attackColor : ATTACK_COLOR,
       defenseColor: isRoleColor(parsed.defenseColor) ? parsed.defenseColor : DEFENSE_COLOR,
-      showThree: typeof parsed.showThree === "boolean" ? parsed.showThree : true,
     };
   } catch {
     return fallback;
@@ -203,7 +199,6 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
   const [cap, setCapState] = useState<LineCap>(settings.cap);
   const [width, setWidthState] = useState(settings.width);
   const [toolbarOpen, setToolbarOpenState] = useState(settings.toolbarOpen);
-  const [showThree, setShowThreeState] = useState(settings.showThree);
   const [floor, setFloorState] = useState<CourtFloor>(settings.floor);
   const [flatColor, setFlatColorState] = useState(settings.flatColor);
   const [attackColor, setAttackColorState] = useState(settings.attackColor);
@@ -339,7 +334,6 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
       cap,
       width,
       toolbarOpen,
-      showThree,
       floor,
       flatColor,
       floorVersion: FLOOR_DEFAULT_VERSION,
@@ -351,7 +345,7 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
     } catch {
       /* ignore quota */
     }
-  }, [tool, color, lineStyle, cap, width, toolbarOpen, showThree, floor, flatColor, attackColor, defenseColor]);
+  }, [tool, color, lineStyle, cap, width, toolbarOpen, floor, flatColor, attackColor, defenseColor]);
 
   useEffect(() => () => window.cancelAnimationFrame(rafRef.current), []);
 
@@ -496,7 +490,11 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
 
   const commitNewPlay = useCallback(() => {
     stopPlayback();
-    const doc = { ...createInitialDoc(), view: stateRef.current.doc.view };
+    const doc = {
+      ...createInitialDoc(),
+      view: stateRef.current.doc.view,
+      court: stateRef.current.doc.court,
+    };
     dispatch({ type: "replace", doc });
     playStore.set({ playing: false, t: 0, index: 0 });
     setSavedSig(docSignature(doc));
@@ -606,7 +604,6 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
       cap,
       width,
       toolbarOpen,
-      showThree,
       floor,
       flatColor,
       attackColor,
@@ -626,7 +623,7 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
       setCap: setCapState,
       setWidth: setWidthState,
       setToolbarOpen: setToolbarOpenState,
-      setShowThree: setShowThreeState,
+      setCourt: (court) => edit({ type: "set-court", court }),
       setFloor: setFloorState,
       setFlatColor: setFlatColorState,
       setAttackColor: setAttackColorState,
@@ -692,7 +689,6 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
       cap,
       width,
       toolbarOpen,
-      showThree,
       floor,
       flatColor,
       attackColor,

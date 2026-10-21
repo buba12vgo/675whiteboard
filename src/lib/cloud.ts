@@ -23,6 +23,7 @@ function playPayload(play: Play) {
     category: play.category,
     notes: play.notes,
     view: play.view,
+    court: play.court,
     frames: play.frames,
     createdAt: play.createdAt,
     updatedAt: play.updatedAt,
@@ -40,6 +41,7 @@ export async function cloudDeletePlay(uid: string, playId: string): Promise<void
 export async function cloudSaveDraft(uid: string, draft: Draft, savedAt: number): Promise<void> {
   await setDoc(draftRef(uid), {
     view: draft.view,
+    court: draft.court,
     frames: draft.frames,
     frameIndex: draft.frameIndex,
     meta: draft.meta,

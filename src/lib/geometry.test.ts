@@ -2,14 +2,24 @@ import { describe, expect, it } from "vitest";
 import {
   BACKBOARD_INSET,
   BASKET_INSET,
+  COURT_LENGTH,
   COURT_WIDTH,
   KEY_LENGTH,
   KEY_WIDTH,
+  MINI_ARC,
+  MINI_BOX_HALF,
+  MINI_FRONT,
+  MINI_FT_LENGTH,
+  MINI_LANE_HALF,
+  MINI_MARK,
   THREE_CORNER,
   THREE_CORNER_FROM_BASKET,
   THREE_DX,
   THREE_RADIUS,
   fitCourt,
+  miniFreeThrowArc,
+  miniLayout,
+  miniTicks,
 } from "./geometry.ts";
 
 describe("fitCourt", () => {
@@ -54,5 +64,43 @@ describe("fitCourt", () => {
     expect(Math.abs(dy)).toBeCloseTo(6.6, 6);
     expect(THREE_DX).toBeGreaterThan(1.4);
     expect(THREE_DX).toBeLessThan(1.5);
+  });
+
+  it("places minibasket marks from the FEB free-throw distance, without a 6.75 arc", () => {
+    expect(MINI_FRONT).toBeCloseTo(5.2);
+    expect(MINI_FRONT).toBe(BACKBOARD_INSET + 4);
+    expect(MINI_FT_LENGTH).toBe(3.6);
+    expect(MINI_LANE_HALF * 2).toBe(4.9);
+    expect(MINI_BOX_HALF * 2).toBe(8);
+    expect(MINI_ARC).toBe(1.8);
+    expect(MINI_MARK).toBe(0.1);
+    expect(BASKET_INSET).toBe(1.575);
+
+    const left = miniLayout("left");
+    expect(left.front).toBeCloseTo(5.2);
+    expect(left.laneY[1] - left.laneY[0]).toBeCloseTo(4.9);
+    expect(left.boxY[1] - left.boxY[0]).toBe(8);
+    const right = miniLayout("right");
+    expect(right.front).toBeCloseTo(COURT_LENGTH - 5.2);
+
+    const arc = miniFreeThrowArc("left");
+    const crown = arc.reduce((best, point) => (point.x > best.x ? point : best), arc[0]);
+    expect(crown.x).toBeCloseTo(left.front + MINI_ARC, 5);
+    expect(crown.y).toBeCloseTo(COURT_WIDTH / 2, 5);
+    expect(arc[0].x).toBeCloseTo(left.front, 5);
+    expect(arc[arc.length - 1].x).toBeCloseTo(left.front, 5);
+
+    const other = miniFreeThrowArc("right");
+    const otherCrown = other.reduce((best, point) => (point.x < best.x ? point : best), other[0]);
+    expect(otherCrown.x).toBeCloseTo(right.front - MINI_ARC, 5);
+
+    const ticks = miniTicks("left");
+    expect(ticks).toHaveLength(8);
+    for (const [inner, outer] of ticks) {
+      expect(Math.hypot(outer.x - inner.x, outer.y - inner.y)).toBeCloseTo(MINI_MARK);
+      expect(inner.x).toBeGreaterThan(0);
+      expect(inner.x).toBeLessThan(left.front - 0.5);
+      expect(outer.y < left.laneY[0] || outer.y > left.laneY[1]).toBe(true);
+    }
   });
 });

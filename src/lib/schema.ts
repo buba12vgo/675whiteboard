@@ -1,6 +1,7 @@
 import { defaultTokens } from "@/lib/tokens";
 import type {
   Category,
+  CourtKind,
   CourtView,
   Draft,
   Frame,
@@ -101,6 +102,10 @@ function sanitizeView(value: unknown): CourtView {
   return value === "full" ? "full" : "half";
 }
 
+function sanitizeCourt(value: unknown): CourtKind {
+  return value === "mini" ? "mini" : "fiba";
+}
+
 export function sanitizePlay(value: unknown, freshId = false): Play | null {
   if (!isRecord(value)) return null;
   const frames = Array.isArray(value.frames)
@@ -115,6 +120,7 @@ export function sanitizePlay(value: unknown, freshId = false): Play | null {
     category: sanitizeCategory(value.category),
     notes: (str(value.notes) ?? "").slice(0, 2000),
     view: sanitizeView(value.view),
+    court: sanitizeCourt(value.court),
     frames,
     createdAt: num(value.createdAt) ?? now,
     updatedAt: num(value.updatedAt) ?? now,
@@ -141,6 +147,7 @@ export function sanitizeDraft(value: unknown): Draft | null {
   }
   return {
     view: sanitizeView(source.view),
+    court: sanitizeCourt(source.court),
     frames,
     frameIndex: Math.min(frames.length - 1, Math.max(0, Math.round(index))),
     meta,
@@ -175,6 +182,7 @@ export function parsePlays(value: unknown): Play[] | null {
 export function draftFromPlay(play: Play): Draft {
   return {
     view: play.view,
+    court: play.court,
     frames: play.frames,
     frameIndex: 0,
     meta: {
@@ -191,6 +199,7 @@ export function playFromDraft(draft: Draft, meta: PlayMeta, previous?: Pick<Play
   return {
     ...meta,
     view: draft.view,
+    court: draft.court,
     frames: draft.frames,
     createdAt: previous?.createdAt ?? now,
     updatedAt: now,

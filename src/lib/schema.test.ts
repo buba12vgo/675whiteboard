@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parsePlays, sanitizeDraft, serializePlays } from "./schema.ts";
+import { draftFromPlay, parsePlays, playFromDraft, sanitizeDraft, sanitizePlay, serializePlays } from "./schema.ts";
 import type { Play } from "./types.ts";
 
 const play: Play = {
@@ -8,6 +8,7 @@ const play: Play = {
   category: "jugada",
   notes: "Bloqueo ciego",
   view: "half",
+  court: "fiba",
   createdAt: 1,
   updatedAt: 2,
   frames: [
@@ -79,6 +80,26 @@ describe("schema", () => {
       },
     });
     expect(draft?.view).toBe("full");
+    expect(draft?.court).toBe("fiba");
     expect(draft?.frames).toHaveLength(1);
+  });
+
+  it("keeps minibasket on the play and defaults an older file to FIBA", () => {
+    const { court: _court, ...older } = play;
+    expect(sanitizePlay(older)?.court).toBe("fiba");
+    const mini = sanitizePlay({ ...play, court: "mini" });
+    expect(mini?.court).toBe("mini");
+    const draft = sanitizeDraft({
+      view: "half",
+      court: "mini",
+      frameIndex: 0,
+      meta: null,
+      frames: play.frames,
+    });
+    expect(draft?.court).toBe("mini");
+    expect(draftFromPlay(mini!).court).toBe("mini");
+    expect(
+      playFromDraft(draft!, { id: "a", name: "Bloqueo", category: "jugada", notes: "" }).court,
+    ).toBe("mini");
   });
 });

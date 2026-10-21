@@ -1,5 +1,8 @@
 export type CourtView = "full" | "half";
 
+/** FIBA keeps the 6.75 line. Minibasket is the FEB court: no three-point arc. */
+export type CourtKind = "fiba" | "mini";
+
 export type LineStyle = "solid" | "dashed" | "assist" | "zigzag" | "shot";
 
 export type LineCap = "none" | "arrow" | "tee";
@@ -51,6 +54,7 @@ export type PlayMeta = {
 
 export type Draft = {
   view: CourtView;
+  court: CourtKind;
   frames: Frame[];
   frameIndex: number;
   meta: PlayMeta | null;
@@ -58,6 +62,7 @@ export type Draft = {
 
 export type Play = PlayMeta & {
   view: CourtView;
+  court: CourtKind;
   frames: Frame[];
   createdAt: number;
   updatedAt: number;

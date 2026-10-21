@@ -48,7 +48,6 @@ export function Board() {
     registerExporter,
     playStore,
     stopPlayback,
-    showThree,
     floor,
     flatColor,
     attackColor,
@@ -149,9 +148,9 @@ export function Board() {
     const court = courtRef.current;
     if (!court) return;
     const ctx = prepareCanvas(court, size.w, size.h);
-    drawCourt(ctx, transform, { three: showThree, floor, flatColor });
+    drawCourt(ctx, transform, { court: state.doc.court, floor, flatColor });
     drawInkRef.current();
-  }, [transform, size.w, size.h, showThree, floor, flatColor]);
+  }, [transform, size.w, size.h, state.doc.court, floor, flatColor]);
 
   useEffect(() => {
     drawInkRef.current();
@@ -163,7 +162,7 @@ export function Board() {
       const current = doc.frames[doc.frameIndex];
       const hint = transformRef.current?.orientation ?? (doc.view === "half" ? "half" : "length-x");
       const canvas = renderBoardCanvas(doc.view, hint, current.strokes, current.tokens, {
-        three: showThree,
+        court: doc.court,
         floor,
         flatColor,
         attack: attackColor,
@@ -172,7 +171,7 @@ export function Board() {
       return canvasToPng(canvas);
     });
     return () => registerExporter(null);
-  }, [registerExporter, showThree, floor, flatColor, attackColor, defenseColor]);
+  }, [registerExporter, floor, flatColor, attackColor, defenseColor]);
 
   function eventPoint(event: PointerEvent): Point | null {
     const canvas = inkRef.current;

@@ -2,11 +2,15 @@ import {
   arcPoints,
   BACKBOARD_INSET,
   BASKET_INSET,
+  CENTER_RADIUS,
   COURT_LENGTH,
   COURT_WIDTH,
   KEY_LENGTH,
   KEY_WIDTH,
   LINE_WIDTH,
+  miniFreeThrowArc,
+  miniLayout,
+  miniTicks,
   RIM_RADIUS,
   THREE_ALPHA,
   THREE_CORNER,
@@ -15,6 +19,7 @@ import {
   type CourtTransform,
   type Meter,
 } from "@/lib/geometry";
+import type { CourtKind } from "@/lib/types";
 import { isLightColor } from "@/lib/utils";
 
 const LINE = "#173454";
@@ -210,6 +215,37 @@ function drawBasket(ctx: CanvasRenderingContext2D, transform: CourtTransform, si
   ctx.stroke();
 }
 
+/**
+ * Minibasket end: 8 m rectangle to the free-throw line, 4.90 m lane inside it,
+ * semicircle beyond that line, and 100 mm rebound ticks. No 6.75 arc.
+ */
+function drawMini(
+  ctx: CanvasRenderingContext2D,
+  transform: CourtTransform,
+  side: "left" | "right",
+  ink: { line: string; lane: string },
+) {
+  const layout = miniLayout(side);
+  const lane = [
+    { x: layout.baseline, y: layout.laneY[0] },
+    { x: layout.front, y: layout.laneY[0] },
+    { x: layout.front, y: layout.laneY[1] },
+    { x: layout.baseline, y: layout.laneY[1] },
+  ];
+  fillMeters(ctx, transform, lane, ink.lane);
+  const box = [
+    { x: layout.baseline, y: layout.boxY[0] },
+    { x: layout.front, y: layout.boxY[0] },
+    { x: layout.front, y: layout.boxY[1] },
+    { x: layout.baseline, y: layout.boxY[1] },
+  ];
+  strokeMeters(ctx, transform, [...box, box[0]], { color: ink.line });
+  strokeMeters(ctx, transform, [lane[0], lane[1]], { color: ink.line });
+  strokeMeters(ctx, transform, [lane[3], lane[2]], { color: ink.line });
+  for (const tick of miniTicks(side)) strokeMeters(ctx, transform, tick, { color: ink.line });
+  strokeMeters(ctx, transform, miniFreeThrowArc(side), { color: ink.line });
+}
+
 /** One FIBA three-point line: corner straights parallel to the sideline, then the 6.75 m arc. */
 function drawThree(ctx: CanvasRenderingContext2D, transform: CourtTransform, side: "left" | "right", line: string) {
   const baseline = baselineOf(side);
@@ -231,12 +267,12 @@ function drawThree(ctx: CanvasRenderingContext2D, transform: CourtTransform, sid
 }
 
 export type CourtPaint = {
-  three: boolean;
+  court: CourtKind;
   floor: CourtFloor;
   flatColor: string;
 };
 
-const DEFAULT_PAINT: CourtPaint = { three: true, floor: "light", flatColor: FLAT_COLORS[0].value };
+const DEFAULT_PAINT: CourtPaint = { court: "fiba", floor: "light", flatColor: FLAT_COLORS[0].value };
 
 export function drawCourt(ctx: CanvasRenderingContext2D, transform: CourtTransform, paint: CourtPaint = DEFAULT_PAINT) {
   const { rect, scale } = transform;
@@ -269,8 +305,11 @@ export function drawCourt(ctx: CanvasRenderingContext2D, transform: CourtTransfo
 
   for (const side of ["left", "right"] as const) {
     if (!sideOnCourt(transform, side)) continue;
-    drawLane(ctx, transform, side, ink);
-    if (paint.three) drawThree(ctx, transform, side, ink.line);
+    if (paint.court === "mini") drawMini(ctx, transform, side, ink);
+    else {
+      drawLane(ctx, transform, side, ink);
+      drawThree(ctx, transform, side, ink.line);
+    }
     drawBasket(ctx, transform, side, ink.line);
   }
 
@@ -280,6 +319,11 @@ export function drawCourt(ctx: CanvasRenderingContext2D, transform: CourtTransfo
       { x: mid, y: 0 },
       { x: mid, y: COURT_WIDTH },
     ], { color: ink.line });
+  }
+
+  if (paint.court === "mini") {
+    const circle = arcPoints(COURT_LENGTH / 2, COURT_WIDTH / 2, CENTER_RADIUS, 0, Math.PI * 2, 72);
+    strokeMeters(ctx, transform, circle, { color: ink.line });
   }
 
   ctx.restore();

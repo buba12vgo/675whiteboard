@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canRedo, canUndo, createState, currentFrame, reducer } from "./reducer.ts";
+import { canRedo, canUndo, createState, currentFrame, docSignature, reducer } from "./reducer.ts";
 
 describe("reducer", () => {
   it("undoes and redoes a stroke", () => {
@@ -136,5 +136,17 @@ describe("reducer", () => {
   it("does not delete the last frame", () => {
     const state = reducer(createState(), { type: "delete-frame" });
     expect(state.doc.frames).toHaveLength(1);
+  });
+
+  it("stores the court with the play", () => {
+    let state = createState();
+    expect(state.doc.court).toBe("fiba");
+    const before = docSignature(state.doc);
+    state = reducer(state, { type: "set-court", court: "mini" });
+    expect(state.doc.court).toBe("mini");
+    expect(docSignature(state.doc)).not.toBe(before);
+    const signed = docSignature(state.doc);
+    state = reducer(state, { type: "set-court", court: "mini" });
+    expect(docSignature(state.doc)).toBe(signed);
   });
 });

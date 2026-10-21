@@ -1,7 +1,7 @@
 import { tokensAfterMovements } from "@/lib/movement";
 import { draftFromPlay } from "@/lib/schema";
 import { defaultTokens } from "@/lib/tokens";
-import type { CourtView, Draft, Frame, Play, PlayMeta, Stroke, Token } from "@/lib/types";
+import type { CourtKind, CourtView, Draft, Frame, Play, PlayMeta, Stroke, Token } from "@/lib/types";
 import { uid } from "@/lib/utils";
 
 export type Snapshot = {
@@ -22,6 +22,7 @@ export type State = {
 export type Action =
   | { type: "replace"; doc: Draft }
   | { type: "set-view"; view: CourtView }
+  | { type: "set-court"; court: CourtKind }
   | { type: "set-meta"; meta: PlayMeta | null }
   | { type: "commit-stroke"; stroke: Stroke; replaceIds?: string[] }
   | { type: "aim-shot"; id: string; points: Stroke["points"]; snapshot: boolean }
@@ -43,6 +44,7 @@ const HISTORY_LIMIT = 60;
 export function createInitialDoc(): Draft {
   return {
     view: "half",
+    court: "fiba",
     frameIndex: 0,
     meta: null,
     frames: [{ id: uid(), strokes: [], tokens: defaultTokens() }],
@@ -92,7 +94,7 @@ function withFrame(state: State, frameId: string, next: Frame, record: boolean):
 }
 
 export function docSignature(doc: Draft): string {
-  return JSON.stringify({ view: doc.view, frames: doc.frames });
+  return JSON.stringify({ view: doc.view, court: doc.court, frames: doc.frames });
 }
 
 export function signatureOfPlay(play: Play): string {
@@ -106,6 +108,9 @@ export function reducer(state: State, action: Action): State {
     case "set-view":
       if (state.doc.view === action.view) return state;
       return { ...state, doc: { ...state.doc, view: action.view } };
+    case "set-court":
+      if (state.doc.court === action.court) return state;
+      return { ...state, doc: { ...state.doc, court: action.court } };
     case "set-meta":
       return { ...state, doc: { ...state.doc, meta: action.meta } };
     case "commit-stroke": {

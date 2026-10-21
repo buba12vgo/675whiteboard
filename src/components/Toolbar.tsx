@@ -167,9 +167,36 @@ export function Toolbar({ mode }: { mode: "rail" | "dock" }) {
         >
           {board.state.doc.view === "half" ? <IconHalfCourt /> : <IconFullCourt />}
         </ToolButton>
-        <ToolButton label="Línea de 6,75" pressed={board.showThree} onClick={() => board.setShowThree(!board.showThree)}>
-          <span className="text-[11px] font-bold leading-none">6,75</span>
-        </ToolButton>
+        <Popover.Root>
+          <Popover.Trigger asChild>
+            <ToolButton label="Tipo de pista">
+              <span className="text-[11px] font-bold leading-none">
+                {board.state.doc.court === "mini" ? "Mini" : "6,75"}
+              </span>
+            </ToolButton>
+          </Popover.Trigger>
+          <Popover.Portal>
+            <Popover.Content
+              side={side}
+              sideOffset={10}
+              className="z-50 w-52 rounded-2xl border border-line bg-panel p-3 shadow-2xl"
+            >
+              <p className="px-1 pb-2 text-xs uppercase tracking-wide text-muted">Pista</p>
+              <div className="grid gap-2">
+                <CourtChoice
+                  pressed={board.state.doc.court === "fiba"}
+                  label="FIBA (6,75)"
+                  onClick={() => board.setCourt("fiba")}
+                />
+                <CourtChoice
+                  pressed={board.state.doc.court === "mini"}
+                  label="Minibasket"
+                  onClick={() => board.setCourt("mini")}
+                />
+              </div>
+            </Popover.Content>
+          </Popover.Portal>
+        </Popover.Root>
         <Popover.Root>
           <Popover.Trigger asChild>
             <ToolButton label="Fondo">
@@ -379,6 +406,33 @@ function ToolButton({
     >
       {children}
     </Button>
+  );
+}
+
+function CourtChoice({
+  pressed,
+  label,
+  onClick,
+}: {
+  pressed: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <Popover.Close asChild>
+      <button
+        type="button"
+        aria-label={label}
+        aria-pressed={pressed}
+        onClick={onClick}
+        className={cn(
+          "flex h-12 w-full items-center justify-center rounded-xl border text-sm font-semibold",
+          pressed ? "border-amber bg-amber text-ink" : "border-line bg-panel-2 text-cream",
+        )}
+      >
+        {label}
+      </button>
+    </Popover.Close>
   );
 }
 
