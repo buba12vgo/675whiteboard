@@ -12,6 +12,7 @@ import {
 import { fitCourt, type CourtTransform } from "@/lib/geometry";
 import { ballHolderId } from "@/lib/movement";
 import { ATTACK_COLOR, DEFENSE_COLOR, ballBesideHolder, roleColor } from "@/lib/presentation";
+import { tokenPx } from "@/lib/shot";
 import { renderStroke } from "@/lib/strokes";
 import type { CourtView, Stroke, Token } from "@/lib/types";
 import { slugify } from "@/lib/utils";
@@ -91,7 +92,7 @@ export function renderBoardCanvas(
   for (const stroke of strokes) {
     renderStroke(ctx, stroke, transform.toScreen, transform.scale, true);
   }
-  const tokenSize = transform.scale * 0.62;
+  const tokenSize = tokenPx(transform.scale);
   const attack = paint.attack ?? ATTACK_COLOR;
   const defense = paint.defense ?? DEFENSE_COLOR;
   const holderId = ballHolderId(tokens);

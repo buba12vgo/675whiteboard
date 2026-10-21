@@ -210,25 +210,24 @@ function drawBasket(ctx: CanvasRenderingContext2D, transform: CourtTransform, si
   ctx.stroke();
 }
 
+/** One FIBA three-point line: corner straights parallel to the sideline, then the 6.75 m arc. */
 function drawThree(ctx: CanvasRenderingContext2D, transform: CourtTransform, side: "left" | "right", line: string) {
-  const sign = side === "left" ? 1 : -1;
   const baseline = baselineOf(side);
   const basketX = side === "left" ? BASKET_INSET : COURT_LENGTH - BASKET_INSET;
   const midY = COURT_WIDTH / 2;
   const cornerY0 = THREE_CORNER;
   const cornerY1 = COURT_WIDTH - THREE_CORNER;
-  const arcX = basketX + sign * THREE_DX;
-  strokeMeters(ctx, transform, [
-    { x: baseline, y: cornerY0 },
-    { x: arcX, y: cornerY0 },
-  ], { color: line });
-  strokeMeters(ctx, transform, [
-    { x: baseline, y: cornerY1 },
-    { x: arcX, y: cornerY1 },
-  ], { color: line });
+  const arcX = basketX + (side === "left" ? THREE_DX : -THREE_DX);
   const a0 = side === "left" ? -THREE_ALPHA : Math.PI - THREE_ALPHA;
   const a1 = side === "left" ? THREE_ALPHA : Math.PI + THREE_ALPHA;
-  strokeMeters(ctx, transform, arcPoints(basketX, midY, THREE_RADIUS, a0, a1, 56), { color: line });
+  const arc = arcPoints(basketX, midY, THREE_RADIUS, a0, a1, 72);
+  if (arc[0].y > arc[arc.length - 1].y) arc.reverse();
+  strokeMeters(
+    ctx,
+    transform,
+    [{ x: baseline, y: cornerY0 }, { x: arcX, y: cornerY0 }, ...arc, { x: arcX, y: cornerY1 }, { x: baseline, y: cornerY1 }],
+    { color: line },
+  );
 }
 
 export type CourtPaint = {

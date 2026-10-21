@@ -16,7 +16,7 @@ import { ballBesideHolder, roleColor } from "@/lib/presentation";
 import { fitCourt, type CourtTransform } from "@/lib/geometry";
 import { canvasToPng, renderBoardCanvas } from "@/lib/image";
 import { ballHolderId } from "@/lib/movement";
-import { playerForShot, shotOwner, shotPoints } from "@/lib/shot";
+import { playerForShot, shotOwner, shotPoints, tokenPx } from "@/lib/shot";
 import { hitTestStroke, renderStrokes, simplifyPoints } from "@/lib/strokes";
 import { interpolateTokens } from "@/lib/playback";
 import type { Point, Stroke } from "@/lib/types";
@@ -447,7 +447,7 @@ export function Board() {
     }
   }
 
-  const tokenSize = transform ? clamp(transform.scale * 0.74, 44, 64) : 48;
+  const tokenSize = transform ? tokenPx(transform.scale) : 56;
 
   return (
     <div ref={rootRef} className="absolute inset-0 touch-none" onContextMenu={(event) => event.preventDefault()}>

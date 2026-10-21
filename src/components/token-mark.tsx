@@ -1,15 +1,16 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
 import {
+  ATTACK_RING,
   ATTACK_VIEW,
   BALL_DRAW_R,
   BALL_FILL,
   BALL_INK,
   DEFENSE_CIRCLE_R,
   DEFENSE_CRESCENT,
-  DEFENSE_RING,
   DEFENSE_VIEW,
   DISC_FILL,
   MARK_FONT,
+  NUMBER_ON_FILL,
   defenseNumber,
 } from "@/lib/defense-mark";
 import type { Token } from "@/lib/types";
@@ -60,19 +61,43 @@ export function TokenMark({ token, size, onPointerDown, onPointerMove, onPointer
       />
     );
   }
-  return <DiscMark size={size} color={token.color} label={token.label} view={ATTACK_VIEW} />;
+  return (
+    <DiscMark
+      size={size}
+      fill={DISC_FILL}
+      stroke={token.color}
+      strokeWidth={ATTACK_RING}
+      text={token.color}
+      label={token.label}
+      view={ATTACK_VIEW}
+    />
+  );
 }
 
-function DiscFace({ color, label, handlers }: { color: string; label: string; handlers?: Handlers }) {
+function DiscFace({
+  fill,
+  stroke,
+  strokeWidth,
+  text,
+  label,
+  handlers,
+}: {
+  fill: string;
+  stroke: string;
+  strokeWidth: number;
+  text: string;
+  label: string;
+  handlers?: Handlers;
+}) {
   return (
     <>
       <circle
         cx="0"
         cy="0"
         r={DEFENSE_CIRCLE_R}
-        fill={DISC_FILL}
-        stroke={color}
-        strokeWidth={DEFENSE_RING}
+        fill={fill}
+        stroke={strokeWidth > 0 ? stroke : "none"}
+        strokeWidth={strokeWidth}
         style={{ pointerEvents: handlers ? "auto" : "none" }}
         {...handlers}
       />
@@ -82,8 +107,8 @@ function DiscFace({ color, label, handlers }: { color: string; label: string; ha
         textAnchor="middle"
         dominantBaseline="central"
         fontSize={MARK_FONT}
-        fontWeight="600"
-        fill={color}
+        fontWeight="700"
+        fill={text}
         fontFamily="Outfit, sans-serif"
         style={{ pointerEvents: "none" }}
       >
@@ -93,11 +118,27 @@ function DiscFace({ color, label, handlers }: { color: string; label: string; ha
   );
 }
 
-function DiscMark({ size, color, label, view }: { size: number; color: string; label: string; view: number }) {
+function DiscMark({
+  size,
+  fill,
+  stroke,
+  strokeWidth,
+  text,
+  label,
+  view,
+}: {
+  size: number;
+  fill: string;
+  stroke: string;
+  strokeWidth: number;
+  text: string;
+  label: string;
+  view: number;
+}) {
   const half = view / 2;
   return (
     <svg width={size} height={size} viewBox={`${-half} ${-half} ${view} ${view}`} {...svgProps}>
-      <DiscFace color={color} label={label} />
+      <DiscFace fill={fill} stroke={stroke} strokeWidth={strokeWidth} text={text} label={label} />
     </svg>
   );
 }
@@ -119,7 +160,7 @@ function DefenseMark({ size, color, label, ...handlers }: { size: number; color:
         style={{ pointerEvents: "auto" }}
         {...handlers}
       />
-      <DiscFace color={color} label={label} handlers={handlers} />
+      <DiscFace fill={color} stroke={color} strokeWidth={0} text={NUMBER_ON_FILL} label={label} handlers={handlers} />
     </svg>
   );
 }

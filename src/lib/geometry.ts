@@ -1,6 +1,11 @@
 import type { CourtView } from "@/lib/types";
 
-/** FIBA court, meters. Basket centers sit 1.575 m in from each baseline. */
+/**
+ * FIBA court, meters. The three-point line is the current one: a 6.75 m arc
+ * from the basket centre, with straight corners 0.90 m from each sideline
+ * (6.60 m from the basket) running parallel to the sideline until they meet the arc.
+ * The lane is a 4.90 m rectangle; the free-throw line is 5.80 m from the baseline.
+ */
 export const COURT_LENGTH = 28;
 export const COURT_WIDTH = 15;
 export const HALF_LENGTH = 14;
@@ -11,7 +16,9 @@ export const KEY_LENGTH = 5.8;
 export const FT_RADIUS = 1.8;
 export const CENTER_RADIUS = 1.8;
 export const THREE_RADIUS = 6.75;
+/** Distance from the sideline to the corner three. 7.50 − 0.90 = 6.60 m from the basket. */
 export const THREE_CORNER = 0.9;
+export const THREE_CORNER_FROM_BASKET = COURT_WIDTH / 2 - THREE_CORNER;
 export const NO_CHARGE_RADIUS = 1.25;
 export const RIM_RADIUS = 0.225;
 export const LINE_WIDTH = 0.05;

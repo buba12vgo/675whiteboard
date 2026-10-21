@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  BACKBOARD_INSET,
   BASKET_INSET,
   COURT_WIDTH,
+  KEY_LENGTH,
+  KEY_WIDTH,
   THREE_CORNER,
+  THREE_CORNER_FROM_BASKET,
   THREE_DX,
   THREE_RADIUS,
   fitCourt,
@@ -34,12 +38,20 @@ describe("fitCourt", () => {
     expect(tall.orientation).toBe("length-y");
   });
 
-  it("joins the FIBA three-point arc to the corner line", () => {
+  it("uses the current FIBA lines: 6.75 arc, 6.60 corners, 4.90 lane, 5.80 free throw", () => {
+    expect(THREE_RADIUS).toBe(6.75);
+    expect(THREE_CORNER).toBe(0.9);
+    expect(THREE_CORNER_FROM_BASKET).toBeCloseTo(6.6);
+    expect(KEY_WIDTH).toBe(4.9);
+    expect(KEY_LENGTH).toBe(5.8);
+    expect(BASKET_INSET).toBe(1.575);
+    expect(BACKBOARD_INSET).toBe(1.2);
     const y = THREE_CORNER;
     const x = BASKET_INSET + THREE_DX;
     const dx = x - BASKET_INSET;
     const dy = y - COURT_WIDTH / 2;
     expect(Math.hypot(dx, dy)).toBeCloseTo(THREE_RADIUS, 6);
+    expect(Math.abs(dy)).toBeCloseTo(6.6, 6);
     expect(THREE_DX).toBeGreaterThan(1.4);
     expect(THREE_DX).toBeLessThan(1.5);
   });

@@ -167,8 +167,8 @@ export function Toolbar({ mode }: { mode: "rail" | "dock" }) {
         >
           {board.state.doc.view === "half" ? <IconHalfCourt /> : <IconFullCourt />}
         </ToolButton>
-        <ToolButton label="Línea de 6,25" pressed={board.showThree} onClick={() => board.setShowThree(!board.showThree)}>
-          <span className="text-[11px] font-bold leading-none">6,25</span>
+        <ToolButton label="Línea de 6,75" pressed={board.showThree} onClick={() => board.setShowThree(!board.showThree)}>
+          <span className="text-[11px] font-bold leading-none">6,75</span>
         </ToolButton>
         <Popover.Root>
           <Popover.Trigger asChild>

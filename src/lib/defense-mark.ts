@@ -8,7 +8,9 @@ import type { Token } from "@/lib/types";
 export const MARK_R = 36;
 export const MARK_RING = 4.2;
 /** Visible thickness at the top, as a fraction of the disc radius. */
-export const CRESCENT_RATIO = 0.28;
+export const CRESCENT_RATIO = 0.4;
+/** Attack ring, thick enough to read against the cream disc. */
+export const ATTACK_RING = 7.6;
 /** Ball element size relative to a player token. */
 export const BALL_BOX = 0.5;
 /** Drawn ball radius relative to that element. */
@@ -20,17 +22,17 @@ export const BALL_INK = "#24160f";
 export const MARK_FONT = 30;
 
 const EDGE = MARK_R + MARK_RING / 2;
-/** Clear gap between the ring and the inner edge of the crescent. */
-const GAP = 3.6;
-/** How far each horn sticks out past the ring, and how far it drops below center. */
-const TIP_OUT = 7.2;
-const TIP_DROP = 13;
-const CROWN = EDGE + GAP;
+/** Clear gap between the filled disc and the inner edge of the crescent. */
+const GAP = 5.2;
+/** How far each horn sticks out past the disc, and how far it drops below center. */
+const TIP_OUT = 11;
+const TIP_DROP = 16;
+const CROWN = MARK_R + GAP;
 const APEX = CROWN + CRESCENT_RATIO * MARK_R;
 
 type XY = { x: number; y: number };
 
-const rightTip: XY = { x: EDGE + TIP_OUT, y: TIP_DROP };
+const rightTip: XY = { x: MARK_R + TIP_OUT, y: TIP_DROP };
 const leftTip: XY = { x: -rightTip.x, y: rightTip.y };
 const innerCrown: XY = { x: 0, y: -CROWN };
 const apex: XY = { x: 0, y: -APEX };
@@ -47,7 +49,7 @@ const INNER_CY = innerCircle.cy;
 const OUTER_R = outerCircle.r;
 const OUTER_CY = outerCircle.cy;
 
-const ATTACK_PAD = MARK_RING / 2 + 1.6;
+const ATTACK_PAD = ATTACK_RING / 2 + 2;
 export const ATTACK_VIEW = (MARK_R + ATTACK_PAD) * 2;
 
 function arcCenter(start: XY, end: XY, radius: number, large: number, sweep: number): XY {
@@ -115,9 +117,10 @@ export const DEFENSE_SCALE = DEFENSE_VIEW / ATTACK_VIEW;
 
 export const DEFENSE_CIRCLE_R = MARK_R;
 export const DEFENSE_RING = MARK_RING;
+export const NUMBER_ON_FILL = "#ffffff";
 
 export function discOuterPx(tokenSize: number): number {
-  return (tokenSize * (MARK_R * 2 + MARK_RING)) / ATTACK_VIEW;
+  return (tokenSize * (MARK_R * 2 + ATTACK_RING)) / ATTACK_VIEW;
 }
 
 export function defenseCrescentSpec() {
@@ -144,27 +147,32 @@ export function defenseNumber(label: string): string {
   return label.replace(/^X/i, "");
 }
 
-function paintDisc(ctx: CanvasRenderingContext2D, color: string, label: string) {
+function paintDisc(
+  ctx: CanvasRenderingContext2D,
+  options: { fill: string; stroke: string; strokeWidth: number; label: string; text: string },
+) {
   ctx.beginPath();
   ctx.arc(0, 0, MARK_R, 0, Math.PI * 2);
-  ctx.fillStyle = DISC_FILL;
+  ctx.fillStyle = options.fill;
   ctx.fill();
-  ctx.lineWidth = MARK_RING;
-  ctx.strokeStyle = color;
-  ctx.lineJoin = "round";
-  ctx.lineCap = "butt";
-  ctx.stroke();
-  ctx.fillStyle = color;
-  ctx.font = `600 ${MARK_FONT}px Outfit, sans-serif`;
+  if (options.strokeWidth > 0) {
+    ctx.lineWidth = options.strokeWidth;
+    ctx.strokeStyle = options.stroke;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "butt";
+    ctx.stroke();
+  }
+  ctx.fillStyle = options.text;
+  ctx.font = `700 ${MARK_FONT}px Outfit, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(label, 0, 1.2);
+  ctx.fillText(options.label, 0, 1.2);
 }
 
 export function drawAttackMark(ctx: CanvasRenderingContext2D, color: string, label: string, size: number) {
   ctx.save();
   ctx.scale(size / ATTACK_VIEW, size / ATTACK_VIEW);
-  paintDisc(ctx, color, label);
+  paintDisc(ctx, { fill: DISC_FILL, stroke: color, strokeWidth: ATTACK_RING, label, text: color });
   ctx.restore();
 }
 
@@ -178,7 +186,13 @@ export function drawDefenseMark(
   ctx.scale(size / DEFENSE_VIEW, size / DEFENSE_VIEW);
   ctx.fillStyle = token.color;
   ctx.fill(new Path2D(DEFENSE_CRESCENT), "evenodd");
-  paintDisc(ctx, token.color, defenseNumber(token.label));
+  paintDisc(ctx, {
+    fill: token.color,
+    stroke: token.color,
+    strokeWidth: 0,
+    label: defenseNumber(token.label),
+    text: NUMBER_ON_FILL,
+  });
   ctx.restore();
 }
 

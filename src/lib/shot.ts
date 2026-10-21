@@ -1,8 +1,10 @@
 import { BASKET_INSET, COURT_LENGTH, COURT_WIDTH } from "@/lib/geometry";
 import type { CourtView, Point, Stroke, Token } from "@/lib/types";
 
-/** Nominal token diameter on the court, in meters. */
-export const TOKEN_DIAMETER = 0.74;
+/** Nominal token diameter on the court, in meters. Grows with the court. */
+export const TOKEN_DIAMETER = 1.28;
+export const TOKEN_PX_MIN = 48;
+export const TOKEN_PX_MAX = 108;
 
 /** Shot symbol length, in token diameters. Short enough to read as a mark, not a path. */
 export const SHOT_DIAMETERS = 0.7;
@@ -12,10 +14,13 @@ export const SHOT_SNAP = 1.65;
 
 const AIM_DRAG = 0.28;
 
-export function tokenRadiusMeters(scale: number): number {
+export function tokenPx(scale: number): number {
   const safe = Math.max(scale, 1);
-  const px = Math.min(64, Math.max(44, safe * TOKEN_DIAMETER));
-  return px / (2 * safe);
+  return Math.min(TOKEN_PX_MAX, Math.max(TOKEN_PX_MIN, safe * TOKEN_DIAMETER));
+}
+
+export function tokenRadiusMeters(scale: number): number {
+  return tokenPx(scale) / (2 * Math.max(scale, 1));
 }
 
 export function shotLengthMeters(scale: number): number {
