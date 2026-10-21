@@ -282,7 +282,7 @@ export function drawCourt(ctx: CanvasRenderingContext2D, transform: CourtTransfo
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.setTransform(transformNow);
 
-  ctx.fillStyle = "#141210";
+  ctx.fillStyle = "#07111f";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const ink = courtInk(paint.floor, paint.flatColor);

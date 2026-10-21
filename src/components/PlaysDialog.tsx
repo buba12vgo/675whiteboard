@@ -41,7 +41,7 @@ export function PlaysDialog() {
     <Dialog open={board.playsOpen} onOpenChange={board.setPlaysOpen}>
       <DialogContent className="flex max-h-[min(88dvh,820px)] flex-col overflow-hidden p-0">
         <div className="border-b border-line px-5 pb-4 pt-5 pr-14">
-          <DialogTitle className="font-display text-3xl italic leading-none">Pizarra</DialogTitle>
+          <DialogTitle className="font-display text-3xl font-semibold tracking-tight">Biblioteca</DialogTitle>
           <DialogDescription className="mt-1 text-sm text-muted">
             Jugadas y ejercicios guardados en este dispositivo.
           </DialogDescription>
@@ -66,8 +66,8 @@ export function PlaysDialog() {
                 type="button"
                 onClick={() => setFilter(id)}
                 className={cn(
-                  "h-10 rounded-xl border text-sm",
-                  filter === id ? "border-amber bg-amber text-ink" : "border-line text-cream",
+                  "h-10 rounded-full border text-sm font-semibold",
+                  filter === id ? "border-amber bg-amber text-white" : "border-white/15 bg-white/5 text-cream",
                 )}
               >
                 {label}
@@ -77,7 +77,7 @@ export function PlaysDialog() {
         </div>
         <div className="plays-scroll mt-3 min-h-0 flex-1 overflow-y-auto px-3 pb-3">
           {visible.length === 0 ? (
-            <div className="mx-2 my-6 rounded-2xl border border-dashed border-line px-4 py-8 text-center">
+            <div className="mx-2 my-6 rounded-3xl border border-dashed border-white/20 px-4 py-8 text-center">
               {plays.length === 0 ? (
                 <>
                   <p className="font-medium">Todavía no hay nada por aquí</p>
@@ -96,7 +96,7 @@ export function PlaysDialog() {
             <ul className="flex flex-col gap-2">
               {visible.map((play) => (
                 <li key={play.id}>
-                  <article className="rounded-2xl border border-line bg-panel-2 p-3">
+                  <article className="rounded-3xl border border-white/15 bg-white/5 p-3">
                     <button type="button" className="w-full text-left" onClick={() => board.openPlay(play)}>
                       <div className="flex items-start justify-between gap-3">
                         <h3 className="text-base font-semibold">{play.name}</h3>
@@ -112,7 +112,9 @@ export function PlaysDialog() {
                       <p className="mt-1 text-xs text-muted">
                         {play.frames.length === 1 ? "1 paso" : `${play.frames.length} pasos`}
                         {" · "}
-                        {play.view === "half" ? "medio campo" : "campo entero"}
+                        {play.view === "half" ? "media pista" : "pista entera"}
+                        {" · "}
+                        {play.court === "mini" ? "minibasket" : "FIBA 6,75"}
                         {" · "}
                         {formatWhen(play.updatedAt)}
                       </p>
@@ -207,7 +209,9 @@ function PlayForm() {
       }}
     >
       <div className="pr-10">
-        <DialogTitle className="text-xl font-semibold">{renaming ? "Editar ficha" : "Guardar en la pizarra"}</DialogTitle>
+        <DialogTitle className="font-display text-2xl font-semibold tracking-tight">
+          {renaming ? "Editar ficha" : "Guardar en la pizarra"}
+        </DialogTitle>
         <DialogDescription className="mt-1 text-sm text-muted">
           {renaming ? "Cambia el nombre, la categoría o las notas." : "Se guarda en este dispositivo y funciona sin conexión."}
         </DialogDescription>
@@ -231,8 +235,8 @@ function PlayForm() {
             type="button"
             onClick={() => setCategory(id)}
             className={cn(
-              "h-12 rounded-xl border font-medium",
-              category === id ? "border-amber bg-amber text-ink" : "border-line",
+              "h-12 rounded-full border font-semibold",
+              category === id ? "border-amber bg-amber text-white" : "border-white/15 bg-white/5",
             )}
           >
             {id === "jugada" ? "Jugada" : "Ejercicio"}
@@ -271,7 +275,7 @@ export function NewPlayDialog() {
   return (
     <Dialog open={board.confirmNew} onOpenChange={(open) => !open && board.cancelNewPlay()}>
       <DialogContent className="p-5">
-        <DialogTitle className="pr-10 text-xl font-semibold">Nueva jugada</DialogTitle>
+        <DialogTitle className="pr-10 font-display text-2xl font-semibold tracking-tight">Nueva jugada</DialogTitle>
         <DialogDescription className="mt-2 text-sm text-muted">
           {name
             ? `«${name}» tiene cambios sin guardar. La copia guardada se queda como estaba y el campo empieza de cero.`
@@ -294,7 +298,7 @@ export function DeletePlayDialog() {
   return (
     <Dialog open={play !== null} onOpenChange={(open) => !open && board.cancelDelete()}>
       <DialogContent className="p-5">
-        <DialogTitle className="pr-10 text-xl font-semibold">Eliminar jugada</DialogTitle>
+        <DialogTitle className="pr-10 font-display text-2xl font-semibold tracking-tight">Eliminar jugada</DialogTitle>
         <DialogDescription className="mt-2 text-sm text-muted">
           {play ? `¿Eliminar «${play.name}»? No se puede deshacer. Lo que tengas ahora en el campo se queda.` : ""}
         </DialogDescription>

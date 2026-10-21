@@ -9,7 +9,7 @@ export function FramesBar() {
   const total = board.state.doc.frames.length;
   const index = play.playing ? Math.min(play.index, total - 1) : board.state.doc.frameIndex;
   return (
-    <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/10 bg-ink/80 px-1.5 py-1 shadow-xl backdrop-blur">
+    <div className="glass-solid pointer-events-auto flex items-center gap-1 rounded-full px-1.5 py-1">
       <IconButton label="Paso anterior" disabled={index <= 0 || play.playing} onClick={() => board.setFrame(index - 1)}>
         <ChevronLeft className="h-5 w-5" />
       </IconButton>

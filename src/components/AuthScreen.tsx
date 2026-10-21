@@ -44,9 +44,9 @@ export function AuthScreen() {
       className="plays-scroll flex h-full flex-col overflow-y-auto bg-ink px-4"
       style={frame ? { height: frame.height, transform: `translateY(${frame.offset}px)` } : undefined}
     >
-      <div className="my-auto w-full max-w-md self-center rounded-3xl border border-line bg-panel p-6 shadow-2xl sm:p-8">
+      <div className="glass my-auto w-full max-w-md self-center rounded-[2rem] p-6 sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber">675whiteboard</p>
-        <h1 className="mt-2 font-display text-5xl italic text-cream">Pizarra</h1>
+        <h1 className="mt-2 font-display text-5xl font-semibold tracking-tight text-cream">Pizarra</h1>
         <p className="mt-2 text-sm text-muted">Entra para guardar las jugadas en tu cuenta y abrirlas en el iPad o en el ordenador.</p>
 
         {!auth.configured && (
@@ -62,7 +62,8 @@ export function AuthScreen() {
         )}
 
         <Button
-          className="mt-6 h-12 w-full bg-cream text-ink hover:bg-cream/90"
+          variant="outline"
+          className="mt-6 h-12 w-full"
           disabled={!auth.configured || auth.busy}
           onClick={() => void auth.signInGoogle()}
         >
