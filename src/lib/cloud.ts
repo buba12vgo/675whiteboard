@@ -1,6 +1,7 @@
 import { collection, deleteDoc, doc, getDoc, onSnapshot, setDoc, type Unsubscribe } from "firebase/firestore";
 import { firebaseDb } from "@/lib/firebase";
 import { sanitizeDraft, sanitizePlay } from "@/lib/schema";
+import { sanitizeSession, sanitizeTeam, type Session, type Team } from "@/lib/session";
 import type { Draft, Play } from "@/lib/types";
 
 // Standard listeners (not pipelines): the board must keep working offline and
@@ -66,4 +67,69 @@ export function subscribePlays(uid: string, onPlays: (plays: Play[], removeMissi
       .filter((play): play is Play => play !== null);
     onPlays(plays, !snap.metadata.hasPendingWrites);
   });
+}
+
+function teamRef(uid: string, teamId: string) {
+  return doc(firebaseDb(), "users", uid, "teams", teamId);
+}
+
+function sessionRef(uid: string, sessionId: string) {
+  return doc(firebaseDb(), "users", uid, "sessions", sessionId);
+}
+
+export async function cloudPutTeam(uid: string, team: Team): Promise<void> {
+  await setDoc(teamRef(uid, team.id), {
+    id: team.id,
+    name: team.name,
+    createdAt: team.createdAt,
+    updatedAt: team.updatedAt,
+  });
+}
+
+export async function cloudPutSession(uid: string, session: Session): Promise<void> {
+  await setDoc(sessionRef(uid, session.id), {
+    id: session.id,
+    title: session.title,
+    teamId: session.teamId,
+    teamName: session.teamName,
+    date: session.date,
+    court: session.court,
+    ink: session.ink,
+    slots: session.slots,
+    createdAt: session.createdAt,
+    updatedAt: session.updatedAt,
+  });
+}
+
+export async function cloudDeleteSession(uid: string, sessionId: string): Promise<void> {
+  await deleteDoc(sessionRef(uid, sessionId));
+}
+
+export function subscribeTeams(uid: string, onTeams: (teams: Team[], removeMissing: boolean) => void): Unsubscribe {
+  return onSnapshot(
+    collection(firebaseDb(), "users", uid, "teams"),
+    (snap) => {
+      const teams = snap.docs
+        .map((item) => sanitizeTeam({ id: item.id, ...item.data() }))
+        .filter((team): team is Team => team !== null);
+      onTeams(teams, !snap.metadata.hasPendingWrites);
+    },
+    () => undefined,
+  );
+}
+
+export function subscribeSessions(
+  uid: string,
+  onSessions: (sessions: Session[], removeMissing: boolean) => void,
+): Unsubscribe {
+  return onSnapshot(
+    collection(firebaseDb(), "users", uid, "sessions"),
+    (snap) => {
+      const sessions = snap.docs
+        .map((item) => sanitizeSession({ id: item.id, ...item.data() }))
+        .filter((session): session is Session => session !== null);
+      onSessions(sessions, !snap.metadata.hasPendingWrites);
+    },
+    () => undefined,
+  );
 }

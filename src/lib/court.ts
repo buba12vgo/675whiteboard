@@ -322,20 +322,23 @@ export type CourtPaint = {
   court: CourtKind;
   floor: CourtFloor;
   flatColor: string;
+  /** Paint only the court rectangle. The training sheet draws several courts on one page. */
+  clear?: boolean;
 };
 
 const DEFAULT_PAINT: CourtPaint = { court: "fiba", floor: "light", flatColor: FLAT_COLORS[0].value };
 
 export function drawCourt(ctx: CanvasRenderingContext2D, transform: CourtTransform, paint: CourtPaint = DEFAULT_PAINT) {
   const { rect, scale } = transform;
-  const canvas = ctx.canvas;
-  const transformNow = ctx.getTransform();
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.setTransform(transformNow);
-
-  ctx.fillStyle = "#07111f";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (paint.clear !== false) {
+    const canvas = ctx.canvas;
+    const transformNow = ctx.getTransform();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.setTransform(transformNow);
+    ctx.fillStyle = "#07111f";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
 
   const ink = courtInk(paint.floor, paint.flatColor);
   ctx.save();

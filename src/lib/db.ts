@@ -1,5 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import { sanitizeDraft } from "@/lib/schema";
+import type { Session, Team } from "@/lib/session";
 import type { Draft, Play } from "@/lib/types";
 
 interface PizarraDB extends DBSchema {
@@ -12,10 +13,19 @@ interface PizarraDB extends DBSchema {
     key: string;
     value: { version: number; doc: Draft; savedAt?: number };
   };
+  teams: {
+    key: string;
+    value: Team;
+  };
+  sessions: {
+    key: string;
+    value: Session;
+    indexes: { "by-date": string };
+  };
 }
 
 const DB_NAME = "pizarra";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise: Promise<IDBPDatabase<PizarraDB>> | null = null;
 
@@ -23,9 +33,16 @@ function db() {
   if (!dbPromise) {
     dbPromise = openDB<PizarraDB>(DB_NAME, DB_VERSION, {
       upgrade(database) {
-        const plays = database.createObjectStore("plays", { keyPath: "id" });
-        plays.createIndex("by-updated", "updatedAt");
-        database.createObjectStore("kv");
+        if (!database.objectStoreNames.contains("plays")) {
+          const plays = database.createObjectStore("plays", { keyPath: "id" });
+          plays.createIndex("by-updated", "updatedAt");
+        }
+        if (!database.objectStoreNames.contains("kv")) database.createObjectStore("kv");
+        if (!database.objectStoreNames.contains("teams")) database.createObjectStore("teams", { keyPath: "id" });
+        if (!database.objectStoreNames.contains("sessions")) {
+          const sessions = database.createObjectStore("sessions", { keyPath: "id" });
+          sessions.createIndex("by-date", "date");
+        }
       },
     });
   }
@@ -79,4 +96,60 @@ export async function putPlay(play: Play): Promise<void> {
 
 export async function removePlay(id: string): Promise<void> {
   await (await db()).delete("plays", id);
+}
+
+export async function listTeams(): Promise<Team[]> {
+  const teams = await (await db()).getAll("teams");
+  return teams.sort((a, b) => a.name.localeCompare(b.name, "es"));
+}
+
+export async function putTeam(team: Team): Promise<void> {
+  await (await db()).put("teams", team);
+}
+
+export async function syncTeams(teams: Team[], removeMissing: boolean, keep: ReadonlySet<string> = new Set()): Promise<void> {
+  const database = await db();
+  const tx = database.transaction("teams", "readwrite");
+  if (removeMissing) {
+    const keys = await tx.store.getAllKeys();
+    const incoming = new Set(teams.map((team) => team.id));
+    for (const key of keys) {
+      const id = String(key);
+      if (!incoming.has(id) && !keep.has(id)) await tx.store.delete(key);
+    }
+  }
+  for (const team of teams) await tx.store.put(team);
+  await tx.done;
+}
+
+export async function listSessions(): Promise<Session[]> {
+  const sessions = await (await db()).getAll("sessions");
+  return sessions.sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt - a.updatedAt);
+}
+
+export async function putSession(session: Session): Promise<void> {
+  await (await db()).put("sessions", session);
+}
+
+export async function removeSession(id: string): Promise<void> {
+  await (await db()).delete("sessions", id);
+}
+
+export async function syncSessions(
+  sessions: Session[],
+  removeMissing: boolean,
+  keep: ReadonlySet<string> = new Set(),
+): Promise<void> {
+  const database = await db();
+  const tx = database.transaction("sessions", "readwrite");
+  if (removeMissing) {
+    const keys = await tx.store.getAllKeys();
+    const incoming = new Set(sessions.map((session) => session.id));
+    for (const key of keys) {
+      const id = String(key);
+      if (!incoming.has(id) && !keep.has(id)) await tx.store.delete(key);
+    }
+  }
+  for (const session of sessions) await tx.store.put(session);
+  await tx.done;
 }

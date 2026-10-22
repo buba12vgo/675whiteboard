@@ -1,5 +1,6 @@
 import { Copy, FolderOpen, Pencil, Trash2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { SessionsLibrary } from "@/components/SessionsLibrary";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input, Label, Textarea } from "@/components/ui/field";
@@ -7,13 +8,30 @@ import { listPlays } from "@/lib/db";
 import type { Category, Play } from "@/lib/types";
 import { cn, fold, formatWhen } from "@/lib/utils";
 import { useBoard } from "@/state/board-context";
+import { useSession } from "@/state/session-context";
 
 export function PlaysDialog() {
   const board = useBoard();
+  const session = useSession();
   const [plays, setPlays] = useState<Play[]>([]);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"todas" | Category>("todas");
+  const [section, setSection] = useState<"jugadas" | "entrenamientos">("jugadas");
   const fileRef = useRef<HTMLInputElement>(null);
+
+  function openSaved(play: Play) {
+    void session.closeActive();
+    board.openPlay(play);
+  }
+
+  function startPlay() {
+    if (board.dirty) {
+      board.askNewPlay();
+      return;
+    }
+    void session.closeActive();
+    board.askNewPlay();
+  }
 
   useEffect(() => {
     if (!board.playsOpen) return;
@@ -43,9 +61,56 @@ export function PlaysDialog() {
         <div className="border-b border-line px-5 pb-4 pt-5 pr-14">
           <DialogTitle className="font-display text-3xl font-semibold tracking-tight">Biblioteca</DialogTitle>
           <DialogDescription className="mt-1 text-sm text-muted">
-            Jugadas y ejercicios guardados en este dispositivo.
+            Jugadas en este dispositivo y entrenamientos agrupados por equipo.
           </DialogDescription>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {(
+              [
+                ["jugadas", "Jugadas"],
+                ["entrenamientos", "Entrenamientos"],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={section === id}
+                onClick={() => setSection(id)}
+                className={cn(
+                  "h-10 rounded-full border text-sm font-semibold",
+                  section === id ? "border-amber bg-amber text-white" : "border-white/15 bg-white/5 text-cream",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
+        {section === "entrenamientos" ? (
+          <>
+            <div className="px-5 pt-4">
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Buscar por equipo o título"
+                aria-label="Buscar entrenamientos"
+              />
+            </div>
+            <div className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden">
+              <SessionsLibrary query={query} />
+            </div>
+            <div className="border-t border-line p-3">
+              <Button
+                onClick={() => {
+                  board.setPlaysOpen(false);
+                  session.setTeamDialogOpen(true);
+                }}
+              >
+                Nuevo entrenamiento
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
         <div className="flex flex-col gap-3 px-5 pt-4">
           <Input
             value={query}
@@ -97,7 +162,7 @@ export function PlaysDialog() {
               {visible.map((play) => (
                 <li key={play.id}>
                   <article className="rounded-3xl border border-white/15 bg-white/5 p-3">
-                    <button type="button" className="w-full text-left" onClick={() => board.openPlay(play)}>
+                    <button type="button" className="w-full text-left" onClick={() => openSaved(play)}>
                       <div className="flex items-start justify-between gap-3">
                         <h3 className="text-base font-semibold">{play.name}</h3>
                         <span
@@ -121,7 +186,7 @@ export function PlaysDialog() {
                       {play.notes && <p className="mt-2 line-clamp-2 text-sm text-muted">{play.notes}</p>}
                     </button>
                     <div className="mt-2 flex flex-wrap gap-1">
-                      <Button variant="ghost" size="sm" aria-label={`Abrir ${play.name}`} onClick={() => board.openPlay(play)}>
+                      <Button variant="ghost" size="sm" aria-label={`Abrir ${play.name}`} onClick={() => openSaved(play)}>
                         <FolderOpen className="h-4 w-4" />
                         Abrir
                       </Button>
@@ -145,7 +210,7 @@ export function PlaysDialog() {
           )}
         </div>
         <div className="flex flex-col gap-2 border-t border-line p-3">
-          <Button onClick={board.askNewPlay}>Nueva jugada</Button>
+          <Button onClick={startPlay}>Nueva jugada</Button>
           <div className="grid grid-cols-3 gap-2">
           <Button variant="outline" onClick={board.openSave}>Guardar</Button>
           <Button variant="outline" onClick={() => void board.exportJson()}>
@@ -173,6 +238,8 @@ export function PlaysDialog() {
           />
           </div>
         </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -271,6 +338,7 @@ function PlayForm() {
 
 export function NewPlayDialog() {
   const board = useBoard();
+  const session = useSession();
   const name = board.state.doc.meta?.name;
   return (
     <Dialog open={board.confirmNew} onOpenChange={(open) => !open && board.cancelNewPlay()}>
@@ -285,7 +353,14 @@ export function NewPlayDialog() {
           <Button variant="outline" onClick={board.cancelNewPlay}>
             Seguir aquí
           </Button>
-          <Button onClick={board.commitNewPlay}>Empezar nueva</Button>
+          <Button
+            onClick={() => {
+              void session.closeActive();
+              board.commitNewPlay();
+            }}
+          >
+            Empezar nueva
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

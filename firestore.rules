@@ -28,6 +28,15 @@ service cloud.firestore {
     //   - meta: null or map { id, name, category, notes } (required key, value may be null)
     //   - savedAt: number epoch ms (required)
     //
+    // Collection: users/{uid}/teams
+    // Document ID: team id
+    // Fields: id, name (1–80), createdAt, updatedAt
+    //
+    // Collection: users/{uid}/sessions
+    // Document ID: session id
+    // Fields: id, title, teamId, teamName, date (YYYY-MM-DD), court, ink (list, client-sanitized),
+    //         slots (map, client-sanitized), createdAt, updatedAt
+    //
     // Ownership comes from the path uid, never from a field on the document.
     // ===============================================================
 
@@ -127,6 +136,67 @@ service cloud.firestore {
       allow read, delete: if isOwner(userId) && draftId == 'current';
       allow create: if isOwner(userId) && draftId == 'current' && isValidDraft();
       allow update: if isOwner(userId) && draftId == 'current' && isValidDraft();
+    }
+
+    function isValidTeam(teamId) {
+      let data = request.resource.data;
+      return isShortId(teamId)
+        && data.keys().hasOnly(['id', 'name', 'createdAt', 'updatedAt'])
+        && data.id == teamId
+        && data.name is string
+        && data.name.size() > 0
+        && data.name.size() <= 80
+        && isEpochMillis(data.createdAt)
+        && isEpochMillis(data.updatedAt)
+        && data.updatedAt >= data.createdAt
+        && request.resource.size() < 20000;
+    }
+
+    function isValidTeamUpdate(teamId) {
+      return isValidTeam(teamId)
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    function isValidSession(sessionId) {
+      let data = request.resource.data;
+      return isShortId(sessionId)
+        && data.keys().hasOnly(['id', 'title', 'teamId', 'teamName', 'date', 'court', 'ink', 'slots', 'createdAt', 'updatedAt'])
+        && data.id == sessionId
+        && data.title is string
+        && data.title.size() > 0
+        && data.title.size() <= 80
+        && isShortId(data.teamId)
+        && data.teamName is string
+        && data.teamName.size() > 0
+        && data.teamName.size() <= 80
+        && data.date is string
+        && data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && isCourt(data.court)
+        && isBoundedList(data.ink, 0, 400)
+        && data.slots is map
+        && isEpochMillis(data.createdAt)
+        && isEpochMillis(data.updatedAt)
+        && data.updatedAt >= data.createdAt
+        && request.resource.size() < 900000;
+    }
+
+    function isValidSessionUpdate(sessionId) {
+      return isValidSession(sessionId)
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    match /users/{userId}/teams/{teamId} {
+      allow read, delete: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidTeam(teamId);
+      allow update: if isOwner(userId) && isValidTeamUpdate(teamId);
+    }
+
+    match /users/{userId}/sessions/{sessionId} {
+      allow read, delete: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidSession(sessionId);
+      allow update: if isOwner(userId) && isValidSessionUpdate(sessionId);
     }
 
     match /{document=**} {

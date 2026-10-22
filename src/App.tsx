@@ -3,10 +3,14 @@ import { AuthScreen } from "@/components/AuthScreen";
 import { Board } from "@/components/Board";
 import { FramesBar } from "@/components/FramesBar";
 import { DeletePlayDialog, NewPlayDialog, PlayFormDialog, PlaysDialog } from "@/components/PlaysDialog";
+import { NewChooserDialog, TeamDateDialog } from "@/components/SessionDialogs";
 import { Toolbar } from "@/components/Toolbar";
+import { TrainingSheet } from "@/components/TrainingSheet";
+import { formatSessionDate } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { AuthProvider, useAuth } from "@/state/auth-context";
 import { BoardProvider, useBoard } from "@/state/board-context";
+import { SessionProvider, useSession } from "@/state/session-context";
 
 export default function App() {
   return (
@@ -31,15 +35,19 @@ function Gate() {
   if (!auth.user) return <AuthScreen />;
   return (
     <BoardProvider key={auth.user.uid} userId={auth.user.uid}>
-      <Shell />
+      <SessionProvider userId={auth.user.uid}>
+        <Shell />
+      </SessionProvider>
     </BoardProvider>
   );
 }
 
 function Shell() {
   const board = useBoard();
+  const session = useSession();
   const auth = useAuth();
   const mode = useLayoutMode();
+  const sheet = session.active;
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -52,15 +60,20 @@ function Shell() {
       const key = event.key.toLowerCase();
       if (mod && key === "z") {
         event.preventDefault();
-        if (event.shiftKey) board.redo();
+        if (sheet) {
+          if (event.shiftKey) session.redo();
+          else session.undo();
+        } else if (event.shiftKey) board.redo();
         else board.undo();
         return;
       }
       if (mod && key === "y") {
         event.preventDefault();
-        board.redo();
+        if (sheet) session.redo();
+        else board.redo();
         return;
       }
+      if (sheet) return;
       if (event.key === " ") {
         event.preventDefault();
         board.togglePlayback();
@@ -71,7 +84,7 @@ function Shell() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [board]);
+  }, [board, session, sheet]);
 
   if (!board.ready) {
     return (
@@ -89,22 +102,24 @@ function Shell() {
       <h1 className="sr-only">Pizarra táctica de baloncesto</h1>
       <TopBar mode={mode} onSignOut={() => void auth.signOutUser()} email={auth.user?.email} />
       <div className="flex min-h-0 min-w-0 flex-1 gap-2">
-        {mode === "rail" && board.toolbarOpen && <Toolbar mode="rail" />}
-        <div className="relative min-h-0 min-w-0 flex-1">
-          <Board />
+        {!sheet && mode === "rail" && board.toolbarOpen && <Toolbar mode="rail" />}
+        <div className="relative flex min-h-0 min-w-0 flex-1">{sheet ? <TrainingSheet /> : <Board />}</div>
+      </div>
+      {!sheet && (
+        <div className="flex justify-center">
+          <FramesBar />
         </div>
-      </div>
-      <div className="flex justify-center">
-        <FramesBar />
-      </div>
-      {board.toolbarOpen && <Toolbar mode="dock" includeTools={mode === "dock"} />}
+      )}
+      {!sheet && board.toolbarOpen && <Toolbar mode="dock" includeTools={mode === "dock"} />}
       <PlaysDialog />
       <PlayFormDialog />
       <DeletePlayDialog />
       <NewPlayDialog />
-      {board.toast && (
+      <NewChooserDialog />
+      <TeamDateDialog />
+      {(session.toast || board.toast) && (
         <div className="glass-solid pointer-events-none fixed bottom-24 left-1/2 z-[60] -translate-x-1/2 rounded-full px-4 py-2 text-sm font-medium text-cream">
-          {board.toast}
+          {session.toast ?? board.toast}
         </div>
       )}
     </div>
@@ -113,31 +128,58 @@ function Shell() {
 
 function TopBar({ mode, onSignOut, email }: { mode: "rail" | "dock"; onSignOut: () => void; email?: string | null }) {
   const board = useBoard();
+  const session = useSession();
   const meta = board.state.doc.meta;
-  const label = meta?.name ?? "Borrador";
+  const sheet = session.active;
+  const label = sheet ? sheet.title || "Sesión" : (meta?.name ?? "Borrador");
   const wide = mode === "rail";
 
   return (
     <header className="glass flex flex-col gap-2 rounded-3xl px-2 py-2 sm:px-3">
       <div className="toolbar-scroll flex items-center gap-1.5 overflow-x-auto">
         <img src="/icons/apple-touch-icon.png" alt="" width={32} height={32} className="h-8 w-8 shrink-0 rounded-md" />
-        <button type="button" onClick={board.openSave} className="min-w-0 flex-1 text-left sm:flex-none sm:max-w-[16rem]">
+        <button
+          type="button"
+          onClick={() => {
+            if (!sheet) board.openSave();
+          }}
+          className="min-w-0 flex-1 text-left sm:flex-none sm:max-w-[16rem]"
+        >
           <span className="block truncate font-display text-base font-semibold tracking-tight">{label}</span>
           <span className="flex items-center gap-1.5 text-[11px] text-muted">
-            {meta ? (meta.category === "jugada" ? "Jugada" : "Ejercicio") : "Sin guardar"}
-            {board.dirty && <span className="h-1.5 w-1.5 rounded-full bg-amber" aria-label="Cambios sin guardar" />}
+            {sheet
+              ? `${sheet.teamName} · ${formatSessionDate(sheet.date, "short")}`
+              : meta
+                ? meta.category === "jugada"
+                  ? "Jugada"
+                  : "Ejercicio"
+                : "Sin guardar"}
+            {(sheet ? session.dirty : board.dirty) && (
+              <span className="h-1.5 w-1.5 rounded-full bg-amber" aria-label="Cambios sin guardar" />
+            )}
           </span>
         </button>
         {wide && <CourtControls />}
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
-          {!board.toolbarOpen && (
+          {!sheet && !board.toolbarOpen && (
             <BarButton onClick={() => board.setToolbarOpen(true)}>Herramientas</BarButton>
           )}
-          <BarButton onClick={board.askNewPlay}>Nueva</BarButton>
-          <BarButton pressed={board.playsOpen} onClick={() => board.setPlaysOpen(true)}>
+          <BarButton onClick={() => session.setChooserOpen(true)}>Nueva</BarButton>
+          <BarButton
+            pressed={board.playsOpen}
+            onClick={() => {
+              void session.saveActive().finally(() => board.setPlaysOpen(true));
+            }}
+          >
             Biblioteca
           </BarButton>
-          <BarButton tone="primary" onClick={board.openSave}>
+          <BarButton
+            tone="primary"
+            onClick={() => {
+              if (sheet) void session.saveActive(true);
+              else board.openSave();
+            }}
+          >
             Guardar
           </BarButton>
           <BarButton onClick={onSignOut} title={email ?? "Salir"}>
@@ -152,29 +194,37 @@ function TopBar({ mode, onSignOut, email }: { mode: "rail" | "dock"; onSignOut: 
 
 function CourtControls() {
   const board = useBoard();
-  const court = board.state.doc.court;
+  const session = useSession();
+  const sheet = session.active;
+  const court = sheet?.court ?? board.state.doc.court;
   const view = board.state.doc.view;
+  const setCourt = (next: "fiba" | "mini") => {
+    board.setCourt(next);
+    if (sheet) session.patchActive({ court: next });
+  };
   const setView = (next: "half" | "full") => {
     if (view !== next) board.toggleView();
   };
   return (
     <div className="toolbar-scroll flex min-w-0 items-center gap-1.5 overflow-x-auto">
       <Segment>
-        <SegButton pressed={court === "fiba"} onClick={() => board.setCourt("fiba")}>
+        <SegButton pressed={court === "fiba"} onClick={() => setCourt("fiba")}>
           FIBA 6,75
         </SegButton>
-        <SegButton pressed={court === "mini"} onClick={() => board.setCourt("mini")}>
+        <SegButton pressed={court === "mini"} onClick={() => setCourt("mini")}>
           Minibasket
         </SegButton>
       </Segment>
-      <Segment>
-        <SegButton pressed={view === "half"} onClick={() => setView("half")}>
-          Media pista
-        </SegButton>
-        <SegButton pressed={view === "full"} onClick={() => setView("full")}>
-          Pista entera
-        </SegButton>
-      </Segment>
+      {!sheet && (
+        <Segment>
+          <SegButton pressed={view === "half"} onClick={() => setView("half")}>
+            Media pista
+          </SegButton>
+          <SegButton pressed={view === "full"} onClick={() => setView("full")}>
+            Pista entera
+          </SegButton>
+        </Segment>
+      )}
     </div>
   );
 }
