@@ -102,9 +102,9 @@ export function Board() {
     ? Math.min(play.index, state.doc.frames.length - 1)
     : state.doc.frameIndex;
   const frame = state.doc.frames[shownIndex] ?? state.doc.frames[0];
-  const nextFrame = state.doc.frames[(shownIndex + 1) % state.doc.frames.length];
+  const nextFrame = state.doc.frames[shownIndex + 1];
   const displayTokens =
-    play.playing && state.doc.frames.length > 1
+    play.playing && nextFrame
       ? interpolateTokens(frame.tokens, nextFrame.tokens, play.t, frame.strokes)
       : frame.tokens.map((token) => ({ ...token, opacity: 1 }));
   const holderId = ballHolderId(displayTokens);

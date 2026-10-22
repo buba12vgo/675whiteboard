@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Pause, Play, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pause, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { useBoard, usePlayback } from "@/state/board-context";
@@ -8,6 +8,8 @@ export function FramesBar() {
   const play = usePlayback();
   const total = board.state.doc.frames.length;
   const index = play.playing ? Math.min(play.index, total - 1) : board.state.doc.frameIndex;
+  const replay = !play.playing && total > 1 && index >= total - 1;
+  const playLabel = play.playing ? "Pausa" : replay ? "Repetir" : "Reproducir";
   return (
     <div className="glass-solid pointer-events-auto flex items-center gap-1 rounded-full px-1.5 py-1">
       <IconButton label="Paso anterior" disabled={index <= 0 || play.playing} onClick={() => board.setFrame(index - 1)}>
@@ -30,8 +32,8 @@ export function FramesBar() {
       <IconButton label="Borrar paso" disabled={total <= 1 || play.playing} onClick={board.deleteFrame}>
         <Trash2 className="h-5 w-5" />
       </IconButton>
-      <IconButton label={play.playing ? "Pausa" : "Reproducir"} disabled={total < 2} onClick={board.togglePlayback}>
-        {play.playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+      <IconButton label={playLabel} disabled={total < 2} onClick={board.togglePlayback}>
+        {play.playing ? <Pause className="h-5 w-5" /> : replay ? <RotateCcw className="h-5 w-5" /> : <Play className="h-5 w-5" />}
       </IconButton>
       {play.playing && (
         <span className="mr-2 h-1 w-10 overflow-hidden rounded-full bg-white/15">

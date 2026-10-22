@@ -15,6 +15,7 @@ import { cloudDeletePlay, cloudLoadDraft, cloudPutPlay, cloudSaveDraft, subscrib
 import { getPlay, listPlays, loadDraftRecord, putPlay, removePlay, saveDraft, syncPlays } from "@/lib/db";
 import { FLAT_COLORS, FLOOR_DEFAULT_VERSION, resolveFloorSetting, type CourtFloor } from "@/lib/court";
 import { ATTACK_COLOR, DEFENSE_COLOR, isRoleColor } from "@/lib/presentation";
+import { PLAY_HOLD_MS, PLAY_MOVE_MS, playbackLanding } from "@/lib/playback";
 import { downloadJson, shareOrDownload } from "@/lib/image";
 import { pngFilename } from "@/lib/image";
 import { draftFromPlay, parsePlays, playFromDraft, serializePlays } from "@/lib/schema";
@@ -359,30 +360,37 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
     const doc = stateRef.current.doc;
     if (doc.frames.length < 2) return;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const moveDur = reduced ? 1 : 880;
-    const holdDur = reduced ? 520 : 420;
-    playStore.set({ playing: true, t: 0, index: doc.frameIndex });
+    const moveDur = reduced ? 1 : PLAY_MOVE_MS;
+    const holdDur = reduced ? 200 : PLAY_HOLD_MS;
+    dispatch({ type: "set-frame", index: 0 });
+    playStore.set({ playing: true, t: 0, index: 0 });
     let start = performance.now();
     let phase: "move" | "hold" = "move";
     const loop = (now: number) => {
       if (!playStore.get().playing) return;
+      const len = stateRef.current.doc.frames.length;
+      if (len < 2) {
+        stopPlayback();
+        return;
+      }
       const elapsed = now - start;
       if (phase === "move") {
+        const index = playStore.get().index;
         const t = Math.min(1, elapsed / moveDur);
-        playStore.set({ playing: true, t: easeInOut(t), index: playStore.get().index });
-        if (t >= 1) {
+        if (t < 1) {
+          playStore.set({ playing: true, t: easeInOut(t), index });
+        } else {
+          const landed = playbackLanding(index, len);
+          dispatch({ type: "set-frame", index: landed.index });
+          if (landed.done) {
+            playStore.set({ playing: false, t: 0, index: landed.index });
+            return;
+          }
+          playStore.set({ playing: true, t: 0, index: landed.index });
           phase = "hold";
           start = now;
         }
       } else if (elapsed >= holdDur) {
-        const len = stateRef.current.doc.frames.length;
-        if (len < 2) {
-          stopPlayback();
-          return;
-        }
-        const next = (playStore.get().index + 1) % len;
-        playStore.set({ playing: true, t: 0, index: next });
-        dispatch({ type: "set-frame", index: next });
         phase = "move";
         start = now;
       }
