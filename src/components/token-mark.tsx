@@ -5,6 +5,7 @@ import {
   BALL_DRAW_R,
   BALL_FILL,
   BALL_INK,
+  BALL_SEAM,
   DEFENSE_CIRCLE_R,
   DEFENSE_CRESCENT,
   DEFENSE_VIEW,
@@ -174,8 +175,8 @@ function BallMark({ size }: { size: number }) {
       <circle cx="50" cy="50" r={r} fill={BALL_FILL} stroke={BALL_INK} strokeWidth={ring} />
       <path
         d={`M ${50 - seam} 50 H ${50 + seam} M 50 ${50 - seam} V ${50 + seam}`}
-        stroke={BALL_INK}
-        strokeWidth="3.6"
+        stroke={BALL_SEAM}
+        strokeWidth="5"
         fill="none"
       />
     </svg>

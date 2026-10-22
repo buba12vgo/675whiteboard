@@ -67,6 +67,28 @@ describe("schema", () => {
     const tokens = draft?.frames[0].tokens ?? [];
     expect(tokens.find((token) => token.id === "def-2")?.rotation).toBe(90);
     expect(tokens.find((token) => token.id === "def-3")?.rotation).toBe(270);
+    expect(tokens.find((token) => token.id === "def-2")?.color).toBe("#9a3412");
+  });
+
+  it("repaints a saved garnet defender and the old orange ball", () => {
+    const draft = sanitizeDraft({
+      view: "half",
+      frameIndex: 0,
+      meta: null,
+      frames: [
+        {
+          id: "f1",
+          strokes: [],
+          tokens: [
+            { id: "def-1", kind: "defense", label: "X1", color: "#6e2430", x: 1, y: 1 },
+            { id: "ball", kind: "ball", label: "", color: "#e36a1c", x: 2, y: 2 },
+          ],
+        },
+      ],
+    });
+    const tokens = draft?.frames[0].tokens ?? [];
+    expect(tokens.find((token) => token.id === "def-1")?.color).toBe("#ea580c");
+    expect(tokens.find((token) => token.id === "ball")?.color).toBe("#8a4a22");
   });
 
   it("reads a stored draft wrapper", () => {

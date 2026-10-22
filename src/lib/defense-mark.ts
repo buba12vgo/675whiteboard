@@ -17,8 +17,12 @@ export const BALL_BOX = 0.5;
 export const BALL_DRAW_R = 0.44;
 
 export const DISC_FILL = "#f7f5f0";
-export const BALL_FILL = "#e36a1c";
-export const BALL_INK = "#24160f";
+/** Leather, darker than the defense orange, so the ball is not a second defender. */
+export const BALL_FILL = "#8a4a22";
+export const BALL_INK = "#2a160e";
+export const BALL_SEAM = "#f6efe4";
+/** Stored on older rosters before the ball left the defense orange. */
+export const LEGACY_BALL_FILL = "#e36a1c";
 export const MARK_FONT = 30;
 
 const EDGE = MARK_R + MARK_RING / 2;
@@ -213,6 +217,7 @@ export function drawBallMark(ctx: CanvasRenderingContext2D, size: number) {
   ctx.lineTo(reachSeam, 0);
   ctx.moveTo(0, -reachSeam);
   ctx.lineTo(0, reachSeam);
-  ctx.lineWidth = size * 0.036;
+  ctx.strokeStyle = BALL_SEAM;
+  ctx.lineWidth = size * 0.05;
   ctx.stroke();
 }

@@ -1,3 +1,4 @@
+import { BALL_FILL } from "@/lib/defense-mark";
 import { ATTACK_COLOR, DEFENSE_COLOR } from "@/lib/presentation";
 import type { Token } from "@/lib/types";
 
@@ -22,7 +23,7 @@ export const ROSTER: RosterEntry[] = [
   { id: "def-3", kind: "defense", label: "X3", color: DEFENSE_COLOR, x: 7.15, y: 12.15 },
   { id: "def-4", kind: "defense", label: "X4", color: DEFENSE_COLOR, x: 4.35, y: 5.55 },
   { id: "def-5", kind: "defense", label: "X5", color: DEFENSE_COLOR, x: 4.35, y: 9.45 },
-  { id: "ball", kind: "ball", label: "", color: "#e36a1c", x: 10.35, y: 6.85 },
+  { id: "ball", kind: "ball", label: "", color: BALL_FILL, x: 10.35, y: 6.85 },
   { id: "obstacle", kind: "obstacle", label: "", color: "#1a2332", x: 7, y: 7.5 },
 ];
 

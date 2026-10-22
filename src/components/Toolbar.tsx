@@ -197,7 +197,10 @@ export function Toolbar({ mode, includeTools = false }: { mode: "rail" | "dock";
         <span className="text-base font-semibold leading-none">+X</span>
       </PaletteButton>
       <PaletteButton label="Balón" pressed={ballOn} onClick={() => board.toggleRosterToken("ball")} horizontal>
-        <span className="h-4 w-4 rounded-full bg-[#e36a1c]" />
+        <TokenMark
+          token={{ id: "ball", kind: "ball", label: "", color: "", x: 0, y: 0 }}
+          size={18}
+        />
       </PaletteButton>
       <span className={cn("shrink-0 bg-white/15", horizontal ? "mx-1 h-8 w-px" : "my-1 h-px w-8")} />
       <div className={cn("flex items-center gap-1", horizontal ? "px-0.5" : "flex-col")}>

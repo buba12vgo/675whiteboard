@@ -1,13 +1,16 @@
 import type { Token, TokenKind } from "@/lib/types";
 
 export const ATTACK_COLOR = "#17324d";
-export const DEFENSE_COLOR = "#6e2430";
+/** Same orange as `--color-amber` in the chrome and the 675 mark. */
+export const DEFENSE_COLOR = "#ea580c";
+/** Previous default. Saved settings and plays that still store it become the accent. */
+export const LEGACY_DEFENSE_COLOR = "#6e2430";
 
 export const ROLE_SWATCHES = [
   { id: "marino", label: "Marino", value: "#17324d" },
   { id: "tinta", label: "Tinta", value: "#1c2430" },
   { id: "bosque", label: "Bosque", value: "#1d4336" },
-  { id: "granate", label: "Granate", value: "#6e2430" },
+  { id: "naranja", label: "Naranja", value: "#ea580c" },
   { id: "pizarra", label: "Pizarra", value: "#4a5562" },
 ] as const;
 

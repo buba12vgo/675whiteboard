@@ -1,3 +1,5 @@
+import { BALL_FILL, LEGACY_BALL_FILL } from "@/lib/defense-mark";
+import { DEFENSE_COLOR, LEGACY_DEFENSE_COLOR } from "@/lib/presentation";
 import { defaultTokens } from "@/lib/tokens";
 import type {
   Category,
@@ -61,6 +63,12 @@ function sanitizeStroke(value: unknown): Stroke | null {
   };
 }
 
+function storedTokenColor(kind: TokenKind, raw: string | null): string {
+  if (kind === "defense" && (!raw || raw.toLowerCase() === LEGACY_DEFENSE_COLOR)) return DEFENSE_COLOR;
+  if (kind === "ball" && (!raw || raw.toLowerCase() === LEGACY_BALL_FILL)) return BALL_FILL;
+  return raw ?? "#111827";
+}
+
 function sanitizeToken(value: unknown): Token | null {
   if (!isRecord(value)) return null;
   const x = num(value.x);
@@ -72,7 +80,7 @@ function sanitizeToken(value: unknown): Token | null {
     id: str(value.id) ?? uid(),
     kind,
     label: (str(value.label) ?? "").slice(0, 4),
-    color: str(value.color) ?? "#111827",
+    color: storedTokenColor(kind, str(value.color)),
     x,
     y,
     ...(rotation === null ? {} : { rotation: ((rotation % 360) + 360) % 360 }),
