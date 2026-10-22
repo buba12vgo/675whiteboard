@@ -3,7 +3,13 @@ export type CourtView = "full" | "half";
 /** FIBA keeps the 6.75 line. Minibasket is the FEB court: no three-point arc. */
 export type CourtKind = "fiba" | "mini";
 
-export type LineStyle = "solid" | "dashed" | "assist" | "zigzag" | "shot";
+export type LineStyle = "solid" | "dashed" | "assist" | "handoff" | "zigzag" | "shot";
+
+export const LINE_STYLES: LineStyle[] = ["solid", "dashed", "assist", "handoff", "zigzag", "shot"];
+
+export function isLineStyle(value: unknown): value is LineStyle {
+  return typeof value === "string" && LINE_STYLES.includes(value as LineStyle);
+}
 
 export type LineCap = "none" | "arrow" | "tee";
 

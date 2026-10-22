@@ -17,7 +17,7 @@ import { fitCourt, type CourtTransform } from "@/lib/geometry";
 import { canvasToPng, renderBoardCanvas } from "@/lib/image";
 import { ballHolderId } from "@/lib/movement";
 import { playerForShot, shotOwner, shotPoints, tokenPx } from "@/lib/shot";
-import { hitTestStroke, renderStrokes, simplifyPoints } from "@/lib/strokes";
+import { handoffSegment, hitTestStroke, renderStrokes, simplifyPoints } from "@/lib/strokes";
 import { interpolateTokens } from "@/lib/playback";
 import type { Point, Stroke } from "@/lib/types";
 import { clamp, uid } from "@/lib/utils";
@@ -311,6 +311,15 @@ export function Board() {
       return;
     }
     gestureRef.current = [];
+    if (live.style === "handoff") {
+      const segment = handoffSegment(live.points);
+      if (!segment) {
+        drawInkRef.current();
+        return;
+      }
+      commitStroke({ ...live, points: segment, cap: "none" });
+      return;
+    }
     const scale = transformRef.current?.scale ?? 50;
     const simplified = simplifyPoints(live.points, 0.75 / scale);
     commitStroke({ ...live, points: simplified.length ? simplified : live.points });

@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { assistPoints, hitTestStroke, offsetPolyline, resample, simplifyPoints, zigzagPoints } from "./strokes.ts";
+import {
+  HANDOFF_TICK_M,
+  assistPoints,
+  handoffSegment,
+  handoffTicks,
+  hitTestStroke,
+  offsetPolyline,
+  resample,
+  simplifyPoints,
+  zigzagPoints,
+} from "./strokes.ts";
 import type { Stroke } from "./types.ts";
 
 const stroke: Stroke = {
@@ -59,6 +69,35 @@ describe("strokes", () => {
     expect(points.at(-1)).toEqual({ x: 10, y: 0 });
     expect(points.length).toBeGreaterThan(4);
     expect(points.some((point) => Math.abs(point.y) > 0.4)).toBe(true);
+  });
+
+  it("keeps a hand-off as a straight segment with two ticks near the end", () => {
+    const segment = handoffSegment([
+      { x: 1, y: 2, p: 0.4 },
+      { x: 1.2, y: 2.4, p: 0.5 },
+      { x: 6, y: 2, p: 0.6 },
+    ]);
+    expect(segment).toEqual([
+      { x: 1, y: 2, p: 0.4 },
+      { x: 6, y: 2, p: 0.6 },
+    ]);
+    expect(handoffSegment([{ x: 0, y: 0, p: 0.5 }, { x: 0.2, y: 0, p: 0.5 }])).toBeNull();
+    const from = { x: 0, y: 0 };
+    const to = { x: 4, y: 0 };
+    const ticks = handoffTicks(from, to, 1);
+    expect(ticks).toHaveLength(2);
+    for (const [a, b] of ticks) {
+      expect(b.x - a.x).toBeCloseTo(0);
+      expect(Math.abs(b.y - a.y)).toBeCloseTo(HANDOFF_TICK_M);
+      expect((a.x + b.x) / 2).toBeGreaterThan(2.5);
+    }
+    const outer = (ticks[1][0].x + ticks[1][1].x) / 2;
+    const inner = (ticks[0][0].x + ticks[0][1].x) / 2;
+    expect(outer).toBeGreaterThan(inner);
+    const diagonal = handoffTicks({ x: 0, y: 0 }, { x: 3, y: 3 }, 1)[0];
+    const tx = diagonal[1].x - diagonal[0].x;
+    const ty = diagonal[1].y - diagonal[0].y;
+    expect(tx * 3 + ty * 3).toBeCloseTo(0);
   });
 
   it("offsets a shot into two parallel lines", () => {

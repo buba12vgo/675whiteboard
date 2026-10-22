@@ -92,6 +92,19 @@ describe("movements", () => {
     expect(next.find((token) => token.id === "ball")).toMatchObject({ x: 2.2, y: 2.4 });
   });
 
+  it("moves the ball along a hand-off", () => {
+    const handoff = stroke({
+      points: [
+        { x: 2.1, y: 2.2, p: 0.5 },
+        { x: 6, y: 4, p: 0.5 },
+      ],
+      style: "handoff",
+    });
+    const next = tokensAfterMovements([player, ball], [handoff]);
+    expect(next.find((token) => token.id === "ball")).toMatchObject({ x: 6, y: 4 });
+    expect(next.find((token) => token.id === "atk-1")).toMatchObject({ x: 2, y: 2 });
+  });
+
   it("treats an assist like a pass and ignores an obstacle", () => {
     const assist = stroke({
       points: [

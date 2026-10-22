@@ -8,7 +8,6 @@ import type {
   Draft,
   Frame,
   LineCap,
-  LineStyle,
   Play,
   PlayMeta,
   Point,
@@ -16,10 +15,9 @@ import type {
   Token,
   TokenKind,
 } from "@/lib/types";
-import { EXPORT_APP, EXPORT_VERSION } from "@/lib/types";
+import { EXPORT_APP, EXPORT_VERSION, isLineStyle } from "@/lib/types";
 import { uid } from "@/lib/utils";
 
-const STYLES = new Set<LineStyle>(["solid", "dashed", "assist", "zigzag", "shot"]);
 const CAPS = new Set<LineCap>(["none", "arrow", "tee"]);
 const KINDS = new Set<TokenKind>(["attack", "defense", "ball", "obstacle"]);
 
@@ -49,7 +47,7 @@ function sanitizeStroke(value: unknown): Stroke | null {
   if (!Array.isArray(value.points)) return null;
   const points = value.points.map(sanitizePoint).filter((point): point is Point => point !== null).slice(0, 5000);
   if (points.length === 0) return null;
-  const style = STYLES.has(value.style as LineStyle) ? (value.style as LineStyle) : "solid";
+  const style = isLineStyle(value.style) ? value.style : "solid";
   const cap = CAPS.has(value.cap as LineCap) ? (value.cap as LineCap) : "none";
   const width = num(value.width) ?? 0.1;
   const color = str(value.color) ?? "#1a2332";

@@ -1,7 +1,7 @@
 import * as Popover from "@radix-ui/react-popover";
 import { Eraser, Hand, ImageDown, Pencil, Redo2, Trash2, Undo2 } from "lucide-react";
 import type { ReactNode, Ref } from "react";
-import { IconArrow, IconAssist, IconDashed, IconDribble, IconNone, IconShot, IconSolid, IconTee } from "@/components/icons";
+import { IconArrow, IconAssist, IconDashed, IconDribble, IconHandoff, IconNone, IconShot, IconSolid, IconTee } from "@/components/icons";
 import { COURT_FLOORS, FLAT_COLORS, type CourtFloor } from "@/lib/court";
 import { DEFENSE_SCALE } from "@/lib/defense-mark";
 import { ROLE_SWATCHES, roleColor } from "@/lib/presentation";
@@ -25,6 +25,8 @@ export function Toolbar({ mode, includeTools = false }: { mode: "rail" | "dock";
       <IconDashed />
     ) : board.lineStyle === "assist" ? (
       <IconAssist />
+    ) : board.lineStyle === "handoff" ? (
+      <IconHandoff />
     ) : board.lineStyle === "zigzag" ? (
       <IconDribble />
     ) : board.lineStyle === "shot" ? (
@@ -80,6 +82,9 @@ export function Toolbar({ mode, includeTools = false }: { mode: "rail" | "dock";
               </Choice>
               <Choice pressed={board.lineStyle === "assist"} label="Asistencia" onClick={() => board.setLineStyle("assist")}>
                 <IconAssist />
+              </Choice>
+              <Choice pressed={board.lineStyle === "handoff"} label="Mano a mano" onClick={() => board.setLineStyle("handoff")}>
+                <IconHandoff />
               </Choice>
               <Choice pressed={board.lineStyle === "shot"} label="Tiro" onClick={() => board.setLineStyle("shot")}>
                 <IconShot />
@@ -387,9 +392,10 @@ function Choice({
   return (
     <button
       type="button"
+      aria-pressed={pressed}
       onClick={onClick}
       className={cn(
-        "flex h-16 flex-col items-center justify-center gap-1 rounded-2xl border text-xs font-medium",
+        "flex min-h-16 flex-col items-center justify-center gap-1 rounded-2xl border px-1 py-2 text-center text-xs font-medium leading-tight",
         pressed ? "border-amber bg-amber text-white" : "border-white/15 bg-white/5 text-cream",
       )}
     >

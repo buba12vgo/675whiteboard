@@ -112,6 +112,82 @@ export function assistPoints(points: XY[], radius: number): XY[] {
   return [...points.slice(0, -1), ...loop, end];
 }
 
+/** Hand-off mark, in meters: two short bars across the line, close to the receiver. */
+export const HANDOFF_TICK_M = 0.62;
+export const HANDOFF_GAP_M = 0.34;
+export const HANDOFF_INSET_M = 0.22;
+export const HANDOFF_MIN_M = 0.4;
+
+/** Straight segment from the first sample to the last. Too-short drags are dropped. */
+export function handoffSegment(points: Point[]): Point[] | null {
+  if (points.length < 2) return null;
+  const start = points[0];
+  const end = points[points.length - 1];
+  if (Math.hypot(end.x - start.x, end.y - start.y) < HANDOFF_MIN_M) return null;
+  return [
+    { x: start.x, y: start.y, p: start.p },
+    { x: end.x, y: end.y, p: end.p },
+  ];
+}
+
+/**
+ * Two perpendicular ticks near the end of the segment.
+ * `pxPerMeter` is 1 when `from`/`to` are in meters, or the court scale in screen space.
+ */
+export function handoffTicks(from: XY, to: XY, pxPerMeter: number): Array<[XY, XY]> {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const len = Math.hypot(dx, dy);
+  if (pxPerMeter <= 0 || len < HANDOFF_MIN_M * pxPerMeter) return [];
+  const ux = dx / len;
+  const uy = dy / len;
+  const nx = -uy;
+  const ny = ux;
+  const tick = HANDOFF_TICK_M * pxPerMeter;
+  const gap = HANDOFF_GAP_M * pxPerMeter;
+  const inset = HANDOFF_INSET_M * pxPerMeter;
+  let outer = len - inset;
+  let inner = outer - gap;
+  const earliest = len * 0.45;
+  if (inner < earliest) {
+    outer = Math.min(len - tick * 0.15, earliest + gap);
+    inner = outer - gap;
+  }
+  if (inner <= len * 0.2) return [];
+  const half = tick / 2;
+  return [inner, outer].map((distance) => {
+    const cx = from.x + ux * distance;
+    const cy = from.y + uy * distance;
+    return [
+      { x: cx - nx * half, y: cy - ny * half },
+      { x: cx + nx * half, y: cy + ny * half },
+    ];
+  });
+}
+
+function drawHandoff(ctx: CanvasRenderingContext2D, from: XY, to: XY, color: string, widthPx: number, scale: number) {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const len = Math.hypot(dx, dy);
+  if (len < 4) return;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = widthPx;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(from.x, from.y);
+  ctx.lineTo(to.x, to.y);
+  ctx.stroke();
+  const ticks = handoffTicks(from, to, scale);
+  if (ticks.length === 0) return;
+  ctx.lineWidth = Math.max(widthPx, 2.4);
+  ctx.beginPath();
+  for (const [a, b] of ticks) {
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+  }
+  ctx.stroke();
+}
+
 /** Shift a polyline sideways by a pixel distance. */
 export function offsetPolyline(points: XY[], distance: number): XY[] {
   if (points.length === 0 || distance === 0) return points.map((point) => ({ ...point }));
@@ -255,6 +331,14 @@ export function renderStroke(
   if (isLightColor(stroke.color)) {
     ctx.shadowColor = "rgba(40, 28, 16, 0.45)";
     ctx.shadowBlur = 2.5;
+  }
+
+  if (stroke.style === "handoff") {
+    if (pts.length > 1) {
+      drawHandoff(ctx, pts[0], pts[pts.length - 1], stroke.color, widthPx, scale);
+    }
+    ctx.restore();
+    return;
   }
 
   if (stroke.style === "shot") {

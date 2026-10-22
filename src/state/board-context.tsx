@@ -19,7 +19,7 @@ import { downloadJson, shareOrDownload } from "@/lib/image";
 import { pngFilename } from "@/lib/image";
 import { draftFromPlay, parsePlays, playFromDraft, serializePlays } from "@/lib/schema";
 import { tokenFromRoster } from "@/lib/tokens";
-import type { Category, CourtKind, LineCap, LineStyle, Play, Point, Stroke, Tool } from "@/lib/types";
+import { isLineStyle, type Category, type CourtKind, type LineCap, type LineStyle, type Play, type Point, type Stroke, type Tool } from "@/lib/types";
 import { easeInOut, uid } from "@/lib/utils";
 import {
   canRedo,
@@ -165,6 +165,7 @@ function loadSettings(): Settings {
       flatColor: typeof parsed.flatColor === "string" ? parsed.flatColor : fallback.flatColor,
       attackColor: isRoleColor(parsed.attackColor) ? parsed.attackColor : ATTACK_COLOR,
       defenseColor: isRoleColor(parsed.defenseColor) ? parsed.defenseColor : DEFENSE_COLOR,
+      lineStyle: isLineStyle(parsed.lineStyle) ? parsed.lineStyle : fallback.lineStyle,
     };
   } catch {
     return fallback;

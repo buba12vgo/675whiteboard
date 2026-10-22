@@ -38,6 +38,16 @@ describe("schema", () => {
     expect(parsed?.[0].category).toBe("jugada");
     expect(parsed?.[0].id).not.toBe("p1");
     expect(parsed?.[0].frames[0].strokes[0].style).toBe("assist");
+    const handoff = sanitizePlay({
+      ...play,
+      frames: [
+        {
+          ...play.frames[0],
+          strokes: [{ ...play.frames[0].strokes[0], style: "handoff" }],
+        },
+      ],
+    });
+    expect(handoff?.frames[0].strokes[0].style).toBe("handoff");
   });
 
   it("rejects files without plays", () => {

@@ -54,6 +54,15 @@ export function IconAssist(props: IconProps) {
   );
 }
 
+export function IconHandoff(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 3.5v17" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M7.2 13.4h9.6M7.2 17h9.6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+    </Svg>
+  );
+}
+
 export function IconShot(props: IconProps) {
   return (
     <Svg {...props}>

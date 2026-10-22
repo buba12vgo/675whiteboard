@@ -13,7 +13,7 @@ function isPlayer(token: Token): boolean {
 }
 
 function isPass(style: Stroke["style"]): boolean {
-  return style === "dashed" || style === "assist";
+  return style === "dashed" || style === "assist" || style === "handoff";
 }
 
 /** The attacker who has the ball. The board draws the ball beside that player. */
@@ -44,7 +44,7 @@ function remember(
 
 /**
  * Solid strokes move the player they start on.
- * Dashed passes and assists move the ball when they start on it, or on the player holding it.
+ * Dashed passes, assists, and hand-offs move the ball when they start on it, or on the player holding it.
  * The closest start wins; a later stroke breaks a tie. Shots and dribbles stay put.
  */
 export function movementByToken(tokens: Token[], strokes: Stroke[]): Map<string, Stroke> {
