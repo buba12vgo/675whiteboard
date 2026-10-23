@@ -21,6 +21,7 @@ import { pngFilename } from "@/lib/image";
 import { draftFromPlay, parsePlays, playFromDraft, serializePlays } from "@/lib/schema";
 import { tokenFromRoster } from "@/lib/tokens";
 import { isLineStyle, type Category, type CourtKind, type LineCap, type LineStyle, type Play, type Point, type Stroke, type Tool } from "@/lib/types";
+import { noteRemotePending, trackWrite } from "@/lib/sync-status";
 import { easeInOut, uid } from "@/lib/utils";
 import {
   canRedo,
@@ -192,7 +193,7 @@ function createPlayStore(): PlayStore {
 
 const MAX_FRAMES = 40;
 
-export function BoardProvider({ userId, children }: { userId: string; children: ReactNode }) {
+export function BoardProvider({ userId, linked, children }: { userId: string; linked: boolean; children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, createState);
   const [settings] = useState(loadSettings);
   const [tool, setToolState] = useState<Tool>(settings.tool);
@@ -226,17 +227,24 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
   const cloudWarned = useRef(false);
   const pendingCloud = useRef(new Set<string>());
 
-  const persistPlay = useCallback(async (play: Play) => {
-    pendingCloud.current.add(play.id);
-    await putPlay(play);
-    await cloudPutPlay(userId, play);
-  }, [userId]);
-
   const notify = useCallback((message: string) => {
     setToast(message);
     window.clearTimeout(toastTimer.current);
     toastTimer.current = window.setTimeout(() => setToast(null), 2800);
   }, []);
+
+  const persistPlay = useCallback(async (play: Play) => {
+    await putPlay(play);
+    if (!linked) return;
+    pendingCloud.current.add(play.id);
+    trackWrite(
+      cloudPutPlay(userId, play).catch(() => {
+        if (!navigator.onLine || cloudWarned.current) return;
+        cloudWarned.current = true;
+        notify("El cambio se quedó en este iPad. Se sincronizará cuando haya red.");
+      }),
+    );
+  }, [linked, notify, userId]);
 
   const stopPlayback = useCallback(() => {
     window.cancelAnimationFrame(rafRef.current);
@@ -260,11 +268,12 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
       try {
         const local = await loadDraftRecord();
         let draft = local?.doc ?? null;
-        try {
-          const remote = await cloudLoadDraft(userId);
+        if (linked) {
+          const remote = await Promise.race([
+            cloudLoadDraft(userId).catch(() => null),
+            new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 1200)),
+          ]);
           if (remote && remote.savedAt >= (local?.savedAt ?? 0)) draft = remote.doc;
-        } catch {
-          /* offline: the local draft is enough */
         }
         if (cancelled) return;
         const doc = draft ?? createInitialDoc();
@@ -291,19 +300,47 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
     return () => {
       cancelled = true;
     };
-  }, [notify, playStore, userId]);
+  }, [linked, notify, playStore, userId]);
 
   useEffect(() => {
-    return subscribePlays(userId, (plays, removeMissing) => {
-      const incoming = new Set(plays.map((play) => play.id));
-      for (const id of pendingCloud.current) {
-        if (incoming.has(id)) pendingCloud.current.delete(id);
-      }
-      syncPlays(plays, removeMissing, pendingCloud.current)
-        .then(() => bumpPlays())
-        .catch(() => undefined);
-    });
-  }, [userId]);
+    if (!linked) return;
+    let unsubscribe = () => {};
+    let cancelled = false;
+    listPlays()
+      .then((local) => {
+        if (cancelled) return;
+        for (const play of local) pendingCloud.current.add(play.id);
+        let merged = false;
+        const stop = subscribePlays(userId, (plays, removeMissing) => {
+          noteRemotePending("plays", !removeMissing);
+          if (!merged) {
+            merged = true;
+            const byId = new Map(plays.map((play) => [play.id, play]));
+            for (const play of local) {
+              const remote = byId.get(play.id);
+              if (!remote || play.updatedAt > remote.updatedAt) {
+                trackWrite(cloudPutPlay(userId, play).catch(() => undefined));
+              } else pendingCloud.current.delete(play.id);
+            }
+          }
+          const incoming = new Set(plays.map((play) => play.id));
+          for (const id of pendingCloud.current) {
+            if (incoming.has(id)) pendingCloud.current.delete(id);
+          }
+          syncPlays(plays, removeMissing, pendingCloud.current)
+            .then(() => bumpPlays())
+            .catch(() => undefined);
+        });
+        if (cancelled) stop();
+        else unsubscribe = stop;
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+      noteRemotePending("plays", false);
+      unsubscribe();
+    };
+  }, [linked, userId]);
 
   useEffect(() => {
     if (!ready || !canPersist.current) return;
@@ -316,17 +353,20 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
     const cloudTimer = window.setTimeout(() => {
       const savedAt = Date.now();
       saveDraft(state.doc, savedAt).catch(() => undefined);
-      cloudSaveDraft(userId, state.doc, savedAt).catch(() => {
-        if (cloudWarned.current) return;
-        cloudWarned.current = true;
-        notify("El borrador no se pudo sincronizar. Se queda en este dispositivo.");
-      });
+      if (!linked) return;
+      trackWrite(
+        cloudSaveDraft(userId, state.doc, savedAt).catch(() => {
+          if (!navigator.onLine || cloudWarned.current) return;
+          cloudWarned.current = true;
+          notify("El borrador se quedó en este iPad. Se sincronizará cuando haya red.");
+        }),
+      );
     }, 1000);
     return () => {
       window.clearTimeout(localTimer);
       window.clearTimeout(cloudTimer);
     };
-  }, [notify, ready, state.doc, userId]);
+  }, [linked, notify, ready, state.doc, userId]);
 
   useEffect(() => {
     const next: Settings = {
@@ -484,7 +524,9 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
     try {
       pendingCloud.current.delete(play.id);
       await removePlay(play.id);
-      await cloudDeletePlay(userId, play.id);
+      if (linked) {
+        trackWrite(cloudDeletePlay(userId, play.id).catch(() => undefined));
+      }
       if (stateRef.current.doc.meta?.id === play.id) {
         dispatch({ type: "set-meta", meta: null });
         setSavedSig(docSignature({ ...stateRef.current.doc, meta: null }));
@@ -495,7 +537,7 @@ export function BoardProvider({ userId, children }: { userId: string; children: 
     } catch {
       notify("No se pudo eliminar.");
     }
-  }, [confirmDelete, notify, userId]);
+  }, [confirmDelete, linked, notify, userId]);
 
   const commitNewPlay = useCallback(() => {
     stopPlayback();

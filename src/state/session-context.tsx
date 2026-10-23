@@ -18,6 +18,7 @@ import {
   type SlotMarks,
   type Team,
 } from "@/lib/session";
+import { noteRemotePending, trackWrite } from "@/lib/sync-status";
 import type { CourtKind } from "@/lib/types";
 import { uid } from "@/lib/utils";
 
@@ -60,7 +61,7 @@ function upsert<T extends { id: string }>(items: T[], next: T): T[] {
   return copy;
 }
 
-export function SessionProvider({ userId, children }: { userId: string; children: ReactNode }) {
+export function SessionProvider({ userId, linked, children }: { userId: string; linked: boolean; children: ReactNode }) {
   const [teams, setTeams] = useState<Team[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [active, setActive] = useState<Session | null>(null);
@@ -124,34 +125,90 @@ export function SessionProvider({ userId, children }: { userId: string; children
   }, []);
 
   useEffect(() => {
-    return subscribeTeams(userId, (incoming, removeMissing) => {
-      for (const id of pendingTeams.current) {
-        if (incoming.some((team) => team.id === id)) pendingTeams.current.delete(id);
-      }
-      syncTeams(incoming, removeMissing, pendingTeams.current)
-        .then(() => listTeams())
-        .then((stored) => setTeams(stored))
-        .catch(() => undefined);
-    });
-  }, [userId]);
+    if (!linked) return;
+    let unsubscribe = () => {};
+    let cancelled = false;
+    listTeams()
+      .then((local) => {
+        if (cancelled) return;
+        for (const team of local) pendingTeams.current.add(team.id);
+        let merged = false;
+        const stop = subscribeTeams(userId, (incoming, removeMissing) => {
+          noteRemotePending("teams", !removeMissing);
+          if (!merged) {
+            merged = true;
+            const byId = new Map(incoming.map((team) => [team.id, team]));
+            for (const team of local) {
+              const remote = byId.get(team.id);
+              if (!remote || team.updatedAt > remote.updatedAt) {
+                trackWrite(cloudPutTeam(userId, team).catch(() => undefined));
+              } else pendingTeams.current.delete(team.id);
+            }
+          }
+          for (const id of pendingTeams.current) {
+            if (incoming.some((team) => team.id === id)) pendingTeams.current.delete(id);
+          }
+          syncTeams(incoming, removeMissing, pendingTeams.current)
+            .then(() => listTeams())
+            .then((stored) => setTeams(stored))
+            .catch(() => undefined);
+        });
+        if (cancelled) stop();
+        else unsubscribe = stop;
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+      noteRemotePending("teams", false);
+      unsubscribe();
+    };
+  }, [linked, userId]);
 
   useEffect(() => {
-    return subscribeSessions(userId, (incoming, removeMissing) => {
-      for (const id of pendingSessions.current) {
-        if (incoming.some((session) => session.id === id)) pendingSessions.current.delete(id);
-      }
-      syncSessions(incoming, removeMissing, pendingSessions.current)
-        .then(() => listSessions())
-        .then((stored) => {
-          setSessions(stored);
-          const open = activeRef.current;
-          if (!open || dirtyRef.current) return;
-          const fresh = stored.find((session) => session.id === open.id);
-          if (fresh && fresh.updatedAt > open.updatedAt) remember(fresh, false);
-        })
-        .catch(() => undefined);
-    });
-  }, [remember, userId]);
+    if (!linked) return;
+    let unsubscribe = () => {};
+    let cancelled = false;
+    listSessions()
+      .then((local) => {
+        if (cancelled) return;
+        for (const session of local) pendingSessions.current.add(session.id);
+        let merged = false;
+        const stop = subscribeSessions(userId, (incoming, removeMissing) => {
+          noteRemotePending("sessions", !removeMissing);
+          if (!merged) {
+            merged = true;
+            const byId = new Map(incoming.map((session) => [session.id, session]));
+            for (const session of local) {
+              const remote = byId.get(session.id);
+              if (!remote || session.updatedAt > remote.updatedAt) {
+                trackWrite(cloudPutSession(userId, session).catch(() => undefined));
+              } else pendingSessions.current.delete(session.id);
+            }
+          }
+          for (const id of pendingSessions.current) {
+            if (incoming.some((session) => session.id === id)) pendingSessions.current.delete(id);
+          }
+          syncSessions(incoming, removeMissing, pendingSessions.current)
+            .then(() => listSessions())
+            .then((stored) => {
+              setSessions(stored);
+              const open = activeRef.current;
+              if (!open || dirtyRef.current) return;
+              const fresh = stored.find((session) => session.id === open.id);
+              if (fresh && fresh.updatedAt > open.updatedAt) remember(fresh, false);
+            })
+            .catch(() => undefined);
+        });
+        if (cancelled) stop();
+        else unsubscribe = stop;
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+      noteRemotePending("sessions", false);
+      unsubscribe();
+    };
+  }, [linked, remember, userId]);
 
   const saveActive = useCallback(async (announce = false) => {
     const current = activeRef.current;
@@ -174,14 +231,15 @@ export function SessionProvider({ userId, children }: { userId: string; children
       dirtyRef.current = false;
       setDirty(false);
     }
-    try {
-      await cloudPutSession(userId, stamped);
-    } catch {
-      if (cloudWarned.current) return;
-      cloudWarned.current = true;
-      notify("La sesión se quedó en este iPad. No se pudo sincronizar.");
-    }
-  }, [notify, userId]);
+    if (!linked) return;
+    trackWrite(
+      cloudPutSession(userId, stamped).catch(() => {
+        if (!navigator.onLine || cloudWarned.current) return;
+        cloudWarned.current = true;
+        notify("La sesión se quedó en este iPad. Se sincronizará cuando haya red.");
+      }),
+    );
+  }, [linked, notify, userId]);
 
   useEffect(() => {
     if (!active || !dirty) return;
@@ -196,16 +254,16 @@ export function SessionProvider({ userId, children }: { userId: string; children
       pendingTeams.current.add(team.id);
       await putTeam(team);
       setTeams((items) => upsert(items, team).sort((a, b) => a.name.localeCompare(b.name, "es")));
-      try {
-        await cloudPutTeam(userId, team);
-      } catch {
-        if (!cloudWarned.current) {
+      if (!linked) return;
+      trackWrite(
+        cloudPutTeam(userId, team).catch(() => {
+          if (!navigator.onLine || cloudWarned.current) return;
           cloudWarned.current = true;
-          notify("El equipo se quedó en este iPad. No se pudo sincronizar.");
-        }
-      }
+          notify("El equipo se quedó en este iPad. Se sincronizará cuando haya red.");
+        }),
+      );
     },
-    [notify, userId],
+    [linked, notify, userId],
   );
 
   const startSession = useCallback(
@@ -241,9 +299,9 @@ export function SessionProvider({ userId, children }: { userId: string; children
       remember(session, true);
       setChooserOpen(false);
       setTeamDialogOpen(false);
-      void cloudPutSession(userId, session).catch(() => undefined);
+      if (linked) trackWrite(cloudPutSession(userId, session).catch(() => undefined));
     },
-    [clearHistory, remember, saveActive, storeTeam, userId],
+    [clearHistory, linked, remember, saveActive, storeTeam, userId],
   );
 
   const openSession = useCallback(
@@ -321,13 +379,15 @@ export function SessionProvider({ userId, children }: { userId: string; children
         clearHistory();
         remember(null, false);
       }
-      try {
-        await cloudDeleteSession(userId, session.id);
-      } catch {
-        notify("Se borró en este iPad, pero la copia en la nube sigue ahí.");
+      if (linked) {
+        trackWrite(
+          cloudDeleteSession(userId, session.id).catch(() => {
+            if (navigator.onLine) notify("Se borró en este iPad, pero la copia en la nube sigue ahí.");
+          }),
+        );
       }
     },
-    [clearHistory, notify, remember, userId],
+    [clearHistory, linked, notify, remember, userId],
   );
 
   const api = useMemo<SessionApi>(

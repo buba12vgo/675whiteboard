@@ -12,14 +12,18 @@ import {
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { messageForAuth } from "@/lib/auth-errors";
 import { firebaseAuth, firebaseConfigured } from "@/lib/firebase";
+import { chooseGuest, clearGuest, guestChosen } from "@/lib/guest";
 
 type AuthApi = {
   ready: boolean;
   user: User | null;
+  guest: boolean;
   configured: boolean;
   error: string | null;
   busy: boolean;
   clearError: () => void;
+  enterGuest: () => void;
+  leaveGuest: () => void;
   signInGoogle: () => Promise<void>;
   signInEmail: (email: string, password: string) => Promise<void>;
   signUpEmail: (email: string, password: string) => Promise<void>;
@@ -30,30 +34,55 @@ const AuthContext = createContext<AuthApi | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const configured = firebaseConfigured();
-  const [ready, setReady] = useState(!configured);
+  const [guest, setGuest] = useState(guestChosen);
+  const [ready, setReady] = useState(!configured || guestChosen());
   const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!configured) return;
-    const auth = firebaseAuth();
-    const unsub = onAuthStateChanged(auth, (next) => {
-      setUser(next);
+    let unsub = () => {};
+    try {
+      const auth = firebaseAuth();
+      unsub = onAuthStateChanged(auth, (next) => {
+        setUser(next);
+        if (next) {
+          clearGuest();
+          setGuest(false);
+        }
+        setReady(true);
+      });
+      getRedirectResult(auth).catch((cause) => setError(messageForAuth(cause)));
+    } catch {
       setReady(true);
-    });
-    getRedirectResult(auth).catch((cause) => setError(messageForAuth(cause)));
-    return unsub;
+    }
+    const timer = window.setTimeout(() => setReady(true), 800);
+    return () => {
+      unsub();
+      window.clearTimeout(timer);
+    };
   }, [configured]);
 
   const api = useMemo<AuthApi>(
     () => ({
       ready,
       user,
+      guest,
       configured,
       error,
       busy,
       clearError: () => setError(null),
+      enterGuest: () => {
+        chooseGuest();
+        setGuest(true);
+        setReady(true);
+        setError(null);
+      },
+      leaveGuest: () => {
+        clearGuest();
+        setGuest(false);
+      },
       signInGoogle: async () => {
         setBusy(true);
         setError(null);
@@ -92,10 +121,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
       signOutUser: async () => {
-        await signOut(firebaseAuth());
+        clearGuest();
+        setGuest(false);
+        if (configured) await signOut(firebaseAuth());
       },
     }),
-    [busy, configured, error, ready, user],
+    [busy, configured, error, guest, ready, user],
   );
 
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>;

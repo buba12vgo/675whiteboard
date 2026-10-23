@@ -6,7 +6,9 @@ import { DeletePlayDialog, NewPlayDialog, PlayFormDialog, PlaysDialog } from "@/
 import { NewChooserDialog, TeamDateDialog } from "@/components/SessionDialogs";
 import { Toolbar } from "@/components/Toolbar";
 import { TrainingSheet } from "@/components/TrainingSheet";
+import { LOCAL_USER } from "@/lib/guest";
 import { formatSessionDate } from "@/lib/session";
+import { setLinkedAccount, syncLabel, useSyncStatus } from "@/lib/sync-status";
 import { cn } from "@/lib/utils";
 import { AuthProvider, useAuth } from "@/state/auth-context";
 import { BoardProvider, useBoard } from "@/state/board-context";
@@ -22,7 +24,13 @@ export default function App() {
 
 function Gate() {
   const auth = useAuth();
-  if (!auth.ready) {
+  const uid = auth.user?.uid ?? (auth.guest ? LOCAL_USER : null);
+  const linked = Boolean(auth.user);
+  useEffect(() => {
+    setLinkedAccount(Boolean(uid) && linked);
+  }, [linked, uid]);
+
+  if (!uid && !auth.ready) {
     return (
       <div className="grid h-full place-items-center bg-ink">
         <div className="text-center">
@@ -32,10 +40,10 @@ function Gate() {
       </div>
     );
   }
-  if (!auth.user) return <AuthScreen />;
+  if (!uid) return <AuthScreen />;
   return (
-    <BoardProvider key={auth.user.uid} userId={auth.user.uid}>
-      <SessionProvider userId={auth.user.uid}>
+    <BoardProvider key={uid} userId={uid} linked={linked}>
+      <SessionProvider userId={uid} linked={linked}>
         <Shell />
       </SessionProvider>
     </BoardProvider>
@@ -100,7 +108,13 @@ function Shell() {
   return (
     <div className="flex h-full w-full flex-col gap-2 bg-ink p-2 pt-[max(0.5rem,env(safe-area-inset-top))] pr-[max(0.5rem,env(safe-area-inset-right))] pb-[max(0.5rem,env(safe-area-inset-bottom))] pl-[max(0.5rem,env(safe-area-inset-left))] text-cream">
       <h1 className="sr-only">Pizarra táctica de baloncesto</h1>
-      <TopBar mode={mode} onSignOut={() => void auth.signOutUser()} email={auth.user?.email} />
+      <TopBar
+        mode={mode}
+        linked={Boolean(auth.user)}
+        onSignOut={() => void auth.signOutUser()}
+        onAccount={auth.leaveGuest}
+        email={auth.user?.email}
+      />
       <div className="flex min-h-0 min-w-0 flex-1 gap-2">
         {!sheet && mode === "rail" && board.toolbarOpen && <Toolbar mode="rail" />}
         <div className="relative flex min-h-0 min-w-0 flex-1">{sheet ? <TrainingSheet /> : <Board />}</div>
@@ -126,7 +140,19 @@ function Shell() {
   );
 }
 
-function TopBar({ mode, onSignOut, email }: { mode: "rail" | "dock"; onSignOut: () => void; email?: string | null }) {
+function TopBar({
+  mode,
+  linked,
+  onSignOut,
+  onAccount,
+  email,
+}: {
+  mode: "rail" | "dock";
+  linked: boolean;
+  onSignOut: () => void;
+  onAccount: () => void;
+  email?: string | null;
+}) {
   const board = useBoard();
   const session = useSession();
   const meta = board.state.doc.meta;
@@ -182,9 +208,16 @@ function TopBar({ mode, onSignOut, email }: { mode: "rail" | "dock"; onSignOut: 
           >
             Guardar
           </BarButton>
-          <BarButton onClick={onSignOut} title={email ?? "Salir"}>
-            Salir
-          </BarButton>
+          <SyncPill />
+          {linked ? (
+            <BarButton onClick={onSignOut} title={email ?? "Salir"}>
+              Salir
+            </BarButton>
+          ) : (
+            <BarButton onClick={onAccount} title="Entrar con una cuenta">
+              Cuenta
+            </BarButton>
+          )}
         </div>
       </div>
       {!wide && <CourtControls />}
@@ -226,6 +259,18 @@ function CourtControls() {
         </Segment>
       )}
     </div>
+  );
+}
+
+function SyncPill() {
+  const status = useSyncStatus();
+  const label = syncLabel(status);
+  const dot = !status.online ? "bg-amber" : !status.linked ? "bg-cream/50" : status.pending ? "bg-amber" : "bg-emerald-400";
+  return (
+    <span role="status" aria-live="polite" className="inline-flex h-8 shrink-0 items-center gap-1.5 px-1 text-[11px] text-muted">
+      <span className={cn("h-1.5 w-1.5 rounded-full", dot)} />
+      {label}
+    </span>
   );
 }
 

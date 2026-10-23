@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/field";
+import { useSyncStatus } from "@/lib/sync-status";
 import { useAuth } from "@/state/auth-context";
 
 function inAppBrowser(): boolean {
@@ -27,6 +28,7 @@ function useVisibleFrame(): { height: number; offset: number } | null {
 
 export function AuthScreen() {
   const auth = useAuth();
+  const status = useSyncStatus();
   const frame = useVisibleFrame();
   const embedded = inAppBrowser();
   const [mode, setMode] = useState<"entrar" | "crear">("entrar");
@@ -47,7 +49,14 @@ export function AuthScreen() {
       <div className="glass my-auto w-full max-w-md self-center rounded-[2rem] p-6 sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber">675whiteboard</p>
         <h1 className="mt-2 font-display text-5xl font-semibold tracking-tight text-cream">Pizarra</h1>
-        <p className="mt-2 text-sm text-muted">Entra para guardar las jugadas en tu cuenta y abrirlas en el iPad o en el ordenador.</p>
+        <p className="mt-2 text-sm text-muted">
+          Entra para tener las jugadas en la cuenta, o sigue en este iPad sin red y sin cuenta.
+        </p>
+        <p className="mt-3 text-xs text-muted" role="status">
+          {status.online
+            ? "La cuenta es opcional. Sin ella, todo se guarda en este iPad."
+            : "Sin conexión. Puedes usar la pizarra en este iPad."}
+        </p>
 
         {!auth.configured && (
           <p className="mt-6 rounded-xl bg-danger/15 px-3 py-2 text-sm text-cream">
@@ -122,6 +131,12 @@ export function AuthScreen() {
         >
           {mode === "crear" ? "¿Ya tienes cuenta? Entrar" : "¿No tienes cuenta? Crear una"}
         </button>
+        <Button type="button" variant="outline" className="mt-4 h-12 w-full" onClick={auth.enterGuest}>
+          Usar sin cuenta
+        </Button>
+        <p className="mt-2 text-center text-xs text-muted">
+          Jugadas, equipos y entrenamientos se quedan en este iPad. Si más tarde entras, se copian a la cuenta.
+        </p>
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
+      injectRegister: false,
       includeAssets: ["favicon.ico", "favicon-32.png", "icons/*.png"],
       manifest: {
         name: "675 Pizarra",
@@ -49,9 +50,13 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,svg,png,woff2,ico,webmanifest}"],
+        globPatterns: ["**/*.{js,css,html,svg,png,ico,woff,woff2,webmanifest,jpg,jpeg,webp}"],
         navigateFallback: "index.html",
         navigateFallbackDenylist: [/^\/__/],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
       },
     }),
   ],

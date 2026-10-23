@@ -61,12 +61,16 @@ export async function cloudLoadDraft(uid: string): Promise<CloudDraft | null> {
 }
 
 export function subscribePlays(uid: string, onPlays: (plays: Play[], removeMissing: boolean) => void): Unsubscribe {
-  return onSnapshot(collection(firebaseDb(), "users", uid, "plays"), (snap) => {
-    const plays = snap.docs
-      .map((item) => sanitizePlay({ id: item.id, ...item.data() }))
-      .filter((play): play is Play => play !== null);
-    onPlays(plays, !snap.metadata.hasPendingWrites);
-  });
+  return onSnapshot(
+    collection(firebaseDb(), "users", uid, "plays"),
+    { includeMetadataChanges: true },
+    (snap) => {
+      const plays = snap.docs
+        .map((item) => sanitizePlay({ id: item.id, ...item.data() }))
+        .filter((play): play is Play => play !== null);
+      onPlays(plays, !snap.metadata.hasPendingWrites);
+    },
+  );
 }
 
 function teamRef(uid: string, teamId: string) {
@@ -108,6 +112,7 @@ export async function cloudDeleteSession(uid: string, sessionId: string): Promis
 export function subscribeTeams(uid: string, onTeams: (teams: Team[], removeMissing: boolean) => void): Unsubscribe {
   return onSnapshot(
     collection(firebaseDb(), "users", uid, "teams"),
+    { includeMetadataChanges: true },
     (snap) => {
       const teams = snap.docs
         .map((item) => sanitizeTeam({ id: item.id, ...item.data() }))
@@ -124,6 +129,7 @@ export function subscribeSessions(
 ): Unsubscribe {
   return onSnapshot(
     collection(firebaseDb(), "users", uid, "sessions"),
+    { includeMetadataChanges: true },
     (snap) => {
       const sessions = snap.docs
         .map((item) => sanitizeSession({ id: item.id, ...item.data() }))

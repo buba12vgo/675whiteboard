@@ -1,6 +1,6 @@
 # Pizarra
 
-Pizarra táctica de baloncesto para iPad. El proyecto se llama **675whiteboard**. Campo FIBA a pantalla completa, dibujo con el dedo o el Apple Pencil, fichas de ataque y defensa, y jugadas guardadas en la cuenta. También queda una copia en el dispositivo para seguir dibujando sin red.
+Pizarra táctica de baloncesto para iPad. El proyecto se llama **675whiteboard**. Campo FIBA a pantalla completa, dibujo con el dedo o el Apple Pencil, fichas de ataque y defensa, y jugadas y hojas de entrenamiento. Se puede usar sin cuenta y sin red: todo queda en este iPad. Si más tarde entras, esa copia se sube a la cuenta.
 
 ## Arrancar en local
 
@@ -10,7 +10,7 @@ npm install
 npm run dev
 ```
 
-Abre [http://localhost:47321](http://localhost:47321). Entra con Google o con correo y contraseña. `localhost` ya está autorizado en Firebase, sin el puerto.
+Abre [http://localhost:47321](http://localhost:47321). Puedes pulsar **Usar sin cuenta**, o entrar con Google o con correo y contraseña. `localhost` ya está autorizado en Firebase, sin el puerto.
 
 ```bash
 npm test
@@ -18,7 +18,7 @@ npm run build
 npm run preview
 ```
 
-`npm run build` genera el sitio estático en `dist/`, con el service worker que deja la app disponible sin red.
+`npm run build` genera el sitio estático en `dist/`. El service worker precarga la página, el código, las fuentes y los iconos, así que el icono de la pantalla de inicio abre la pizarra en modo avión, también la primera vez después de instalarla.
 
 ## Instalar en el iPad
 
@@ -37,9 +37,10 @@ El manifiesto usa `display: standalone` y `display_override: fullscreen`, y la p
 
 El proyecto de Firebase se muestra como **675whiteboard**. El identificador interno es `whiteboard675`, porque un id de Google no puede empezar por un número. La app web usa esa configuración, que está en `.env.example`.
 
-- Autenticación: Google y correo con contraseña.
-- Firestore Enterprise, base `pizarra`, región `europe-southwest1` (Madrid).
-- Cada cuenta solo lee y escribe `users/{uid}/plays` y `users/{uid}/drafts/current`.
+- La entrada es opcional. **Usar sin cuenta** guarda jugadas, equipos y entrenamientos en IndexedDB y no llama a la red.
+- Autenticación: Google y correo con contraseña. Al entrar, lo que hubiera en el iPad se copia a la cuenta. Con la sesión abierta y sin red, Firestore encola los cambios y los envía al volver la conexión.
+- Firestore Enterprise, base `pizarra`, región `europe-southwest1` (Madrid). La caché local de Firestore está activa.
+- Cada cuenta solo lee y escribe `users/{uid}/plays`, `users/{uid}/drafts/current`, `users/{uid}/teams` y `users/{uid}/sessions`.
 - Las reglas de `firestore.rules` son un prototipo: revisalas antes de compartir la app con más gente.
 
 Para volver a publicar reglas o proveedores:
@@ -76,7 +77,7 @@ La URL HTTPS de Vercel es la que se abre en Safari del iPad para instalarla.
 - **Pasos**: cada paso guarda las flechas y la posición de las fichas. Reproducir recorre todos los pasos una sola vez, más despacio y con una pausa breve entre ellos, y se queda en el último. Repetir vuelve a empezar desde el primero.
 - **Nueva** pregunta si quieres una **Jugada** o un **Entrenamiento**. La jugada deja el campo en blanco con el 5c5 de inicio y conserva el campo entero o medio campo, y el tipo de pista, que tuvieras. Si hay cambios sin guardar, pide confirmación. **Guardar** pone nombre, categoría (jugada o ejercicio) y notas. Queda en la cuenta y, en este navegador, en IndexedDB. Se puede abrir, renombrar, duplicar y eliminar.
 - **Entrenamiento** pide equipo y fecha. El equipo se elige de los ya guardados o se crea, y queda en la cuenta. La hoja es vertical: cabecera, tres medias pistas a la izquierda con sitio para notas a la derecha, y dos pistas enteras abajo, en FIBA o minibasket. El Apple Pencil escribe en cualquier parte (color, grosor, goma, deshacer); el dedo mueve y hace zoom. Las fichas y los símbolos se pueden poner sobre las pistas. En la biblioteca, **Entrenamientos** agrupa las sesiones por equipo.
-- **Salir** cierra la sesión. La siguiente cuenta no ve las jugadas de la anterior.
+- **Cuenta** abre la entrada cuando estás sin cuenta. **Salir** cierra la sesión. La barra muestra **Sin conexión**, **En este iPad**, **Sincronizando** o **En la cuenta**.
 - **Exportar** descarga un JSON con las jugadas. **Importar** lo vuelve a cargar. El icono de imagen exporta el paso actual en PNG (en el iPad, si el sistema lo permite, abre la hoja de compartir).
 
 **Ocultar** deja el campo libre para el Apple Pencil. **Herramientas** vuelve a mostrar la paleta. Mientras se dibuja, la página no hace scroll ni zoom.
